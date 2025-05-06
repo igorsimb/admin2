@@ -1,0 +1,15 @@
+{% extends "core/layouts/blank.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+
+    <div class="max-w-lg mx-auto flex flex-col items-center pt-20 px-4">
+        <img class="w-36 h-36 rounded-full object-cover mb-4" src="{{ profile.avatar }}" alt="Avatar"/>
+        <div class="text-center">
+            <h1>{{ profile.name }}</h1>
+            <div class="text-gray-400 mb-2 m5-3">@{{ profile.user.username }}</div>
+            {% if profile.info %}
+                <div class="mt-8">{{ profile.info|linebreaksbr }}</div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock content %}
