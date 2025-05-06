@@ -1,0 +1,16 @@
+docs/project_overview.md contains the primary guide for the project
+Do not make code changes unless specifically instructed
+Never apply superficial "patches" — always identify and address the root cause
+For Python-related commands, use: uv run <command>
+Use pytest for all unit testing
+
+Type Hinting Guidelines:
+- Prefer PEP 604 syntax for union types:
+  - Use int | str instead of Union[int, str]
+  - Use X | None instead of Optional[X]
+- Annotate None explicitly for functions that return nothing
+- Always follow PEP 604 style unless backward compatibility with Python <3.10 is required
+- Do not mix Optional[X] and X | None in the same codebase
+- Avoid excessive type annotations on trivial or obvious code — favor clarity over verbosity
+
+use conventional commits

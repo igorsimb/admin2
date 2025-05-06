@@ -1,6 +1,6 @@
 # overview (feed to LLM)
 
-# adminka2: Project Vision & Structural Philosophy
+# admin2: Project Vision & Structural Philosophy
 
 ***
 
@@ -8,7 +8,7 @@
 
 ### What Problems Are We Solving?
 
-1. **Legacy System Fragility**
+1. **Legacy System Fragility - rewriting the code**
    * Current codebase is a "house of cards" – modifying one service breaks unrelated features.
    * 14 microservices with hidden dependencies, 0 documentation.
 2. **Latency & Poor Performance**
@@ -22,7 +22,7 @@
 
 ***
 
-## Strategic Goals for adminka2
+## Strategic Goals for admin2
 
 ### North Star Principles
 
@@ -33,7 +33,7 @@
    * Enforce boundaries using Django’s `AppConfig` and `ready()`.
    * Example: If `parser` needs data from `upload`, use **explicit events** (Celery tasks) instead of direct imports.
 3. **Hybrid Transition**
-   * Run `adminka2` alongside legacy systems indefinitely.
+   * Run `admin2` alongside legacy systems indefinitely.
    * Gradually "strangle" legacy services by rerouting traffic to Django apps.
 4. **Documentation by Design**
    * Treat documentation as a core feature (e.g., docstrings, architecture diagrams).
@@ -78,7 +78,7 @@
 
 ***
 
-## adminka2’s Architectural Pillars
+## admin2’s Architectural Pillars
 
 ### 1. Modular Django Apps as "Pseudo-Services"
 
@@ -98,11 +98,9 @@
 ### 2. Hybrid Transition Mechanics
 
 * **Database Sharing**:
-  * `adminka2` uses the **same Postgres DB and ClickHouse** as legacy (shared credentials/tables).
-* **Routing**:
-  * Optionally use Nginx to route specific endpoints (e.g., `/v2/upload` → `adminka2`).
+  * `admin2` uses the **same Postgres DB and ClickHouse** as legacy (shared credentials/tables).
 * **Coexistence**:
-  * Legacy adminka and adminka2 will co-exist for 12+ monhts
+  * Legacy adminka and admin2 will co-exist for 12+ monhts
 
 ### 3. Testing & Observability
 
@@ -151,7 +149,7 @@
 
 ```graphql
 graph TD
-  A[Legacy Adminka] -->|Shared Postgres| B[adminka2]
+  A[Legacy Adminka] -->|Shared Postgres| B[admin2]
   B -->|Celery Tasks| C[Legacy Services]
   B -->|SELECT| D[ClickHouse]
   C -->|HTTP| E[External APIs]
@@ -159,4 +157,4 @@ graph TD
 
 
 
-![](assets/fQ5LjiKP2_SXI26TMhFbyO-njccwQLULbkSS9zzSSrg=.png)
+![](assets/overview_graph.png)
