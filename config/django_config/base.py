@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     # Local
     "core",
+    "cross_dock",
     "accounts",
     # Third-party
     "django_extensions",

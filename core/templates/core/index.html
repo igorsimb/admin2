@@ -2,8 +2,11 @@
 {% block title %}Main Page{% endblock %}
 {% block content %}
 
-    <div class="max-w-4xl mx-auto px-8 py-24">
-        <h1>Main Page</h1>
-    </div>
+<div class="max-w-4xl mx-auto px-8 py-24">
+    <h1>Main Page</h1>
+
+    <a href="{% url 'cross_dock:index' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock</a>
+
+</div>
 
 {% endblock content %}
