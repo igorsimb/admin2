@@ -54,6 +54,7 @@ select = [
 ignore = [
     "E203",  # Whitespace before ':' (conflicts with Black)
     "E501",  # Line too long (handled by formatter)
+    "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
