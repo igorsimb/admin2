@@ -37,6 +37,8 @@ media/
 
 # Environment variables
 .env
+.env.staging
+.env.production
 
 # IDE specific files
 .idea/

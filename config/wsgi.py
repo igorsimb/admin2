@@ -11,6 +11,13 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django_config.local")
+# Get the environment name from an environment variable, default to staging
+ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", "staging")
+
+# Set the settings module based on the environment
+if ENVIRONMENT == "production":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django_config.production")
+else:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django_config.staging")
 
 application = get_wsgi_application()

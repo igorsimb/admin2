@@ -3,6 +3,16 @@
 
     <content class="block w-full">
 
+        {% if environment == 'production' %}
+            <div class="bg-red-500 text-white text-center py-1">
+                PRODUCTION ENVIRONMENT
+            </div>
+        {% else %}
+            <div class="bg-green-500 text-white text-center py-1">
+                STAGING ENVIRONMENT
+            </div>
+        {% endif %}
+
         {% block content %}
         {% endblock content %}
 
