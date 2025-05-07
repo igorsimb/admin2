@@ -36,6 +36,47 @@ uvm migrate
 uvm createsuperuser
 ```
 
+## Переключение между окружениями
+
+### Функция для переключения окружений
+
+Добавьте в ваш PowerShell профиль ($profile):
+
+```powershell
+function setdjangoenv {
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("staging", "production")]
+        [string]$Environment
+    )
+
+    # Set the environment variable
+    $env:DJANGO_ENVIRONMENT = $Environment
+
+    # Copy the appropriate .env file to .env
+    Copy-Item -Path ".env.$Environment" -Destination ".env" -Force
+
+    Write-Host "Django environment set to: $Environment"
+    Write-Host ".env.$Environment copied to .env"
+}
+```
+
+### Использование функции переключения окружений
+
+```powershell
+# Переключение на окружение staging
+setdjangoenv staging
+
+# Запуск Django с окружением staging
+uv run manage.py runserver
+
+# Переключение на окружение production
+setdjangoenv production
+
+# Запуск Django с окружением production
+uv run manage.py runserver
+```
+
 ## Использование Ruff
 
 ### Проверка кода

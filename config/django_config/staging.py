@@ -1,7 +1,7 @@
 """
-Local settings for project config.
+Staging settings for project config.
 
-This file overrides base.py and is used for the local development environment.
+This file overrides base.py and is used for the staging/development environment.
 """
 
 from .base import *  # noqa

@@ -9,8 +9,9 @@ from config.env import BASE_DIR, env
 
 env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
+DJANGO_ENVIRONMENT = env("DJANGO_ENVIRONMENT", default="staging")
 
 ALLOWED_HOSTS = ["*"]
 
@@ -65,6 +66,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # "django.template.context_processors.settings",
             ],
         },
     },
@@ -124,6 +126,7 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
+
 # django-allauth config
 SITE_ID = 1
 LOGIN_REDIRECT_URL = "index"
@@ -138,3 +141,8 @@ ACCOUNT_SESSION_REMEMBER = True  # True/False/None; None = ask user
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_UNIQUE_EMAIL = True
+
+# ClickHouse settings
+CLICKHOUSE_HOST = env("CLICKHOUSE_HOST", default="localhost")
+CLICKHOUSE_USER = env("CLICKHOUSE_USER", default="default")
+CLICKHOUSE_PASSWORD = env("CLICKHOUSE_PASSWORD", default="")
