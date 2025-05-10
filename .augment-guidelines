@@ -3,6 +3,7 @@ Do not make code changes unless specifically instructed
 Never apply superficial "patches" — always identify and address the root cause
 For Python-related commands, use: uv run <command>
 Use pytest for all unit testing
+Avoid redundant comments that merely restate what the code does — only comment on why or non-obvious implementation details
 
 Type Hinting Guidelines:
 - Prefer PEP 604 syntax for union types:
