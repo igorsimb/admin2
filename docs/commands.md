@@ -124,3 +124,22 @@ ruff format --check .
 # Проверка линтинга без внесения изменений
 ruff check --no-fix .
 ```
+
+### Проверка связи с ClickHouse
+
+```bash
+uvm test_ch_con
+```
+В случае успешной проверки вывод будет вида:
+```
+Testing ClickHouse connection...
+Connection successful! Result: [(1,)]
+ClickHouse version: 25.1.4.53
+Connection test completed successfully
+```
+В случае неудачной проверки вывод будет вида:
+```
+Testing ClickHouse connection...
+socket.gaierror: [Errno 11001] getaddrinfo failed
+ERROR:cross_dock.services.clickhouse_service:Error during ClickHouse operation: Code: 210. getaddrinfo failed (111)
+```
