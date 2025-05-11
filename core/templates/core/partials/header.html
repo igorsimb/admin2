@@ -1,3 +1,13 @@
+{% if environment == 'production' %}
+    <div class="bg-red-500 text-white text-center py-1">
+        PRODUCTION ENVIRONMENT
+    </div>
+{% else %}
+    <div class="bg-green-500 text-white text-center py-1">
+        STAGING ENVIRONMENT
+    </div>
+{% endif %}
+
 <header class="flex items-center justify-between bg-gray-800 h-20 px-8 text-white sticky top-0 z-40">
     <div>
         <a class="flex items-center gap-2" href="/">

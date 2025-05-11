@@ -23,15 +23,22 @@ class TestExcelUtilities:
 
     def test_save_workbook(self):
         """Test that save_workbook correctly saves a workbook to a file."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir):
-                with mock.patch("django.conf.settings.MEDIA_URL", "/media/"):
-                    wb = create_workbook()
-                    filename = "test_workbook.xlsx"
-                    url = save_workbook(wb, filename)
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir),
+            mock.patch("django.conf.settings.MEDIA_URL", "/media/"),
+        ):
+            wb = create_workbook()
+            filename = "test_workbook.xlsx"
+            url = save_workbook(wb, filename)
+            file_path = os.path.join(temp_dir, "exports", filename)
+            assert os.path.exists(file_path)
+            # Verify the file is a valid Excel file
+            assert os.path.getsize(file_path) > 0
+            # Verify workbook can be reopened
+            from openpyxl import load_workbook
 
-                    file_path = os.path.join(temp_dir, "exports", filename)
-                    assert os.path.exists(file_path)
-
-                    expected_url = "/media/exports/test_workbook.xlsx"
-                    assert url == expected_url
+            reopened_wb = load_workbook(file_path)
+            assert reopened_wb is not None
+            expected_url = "/media/exports/test_workbook.xlsx"
+            assert url == expected_url

@@ -61,5 +61,10 @@ class TestClickHouseService:
         mock_get_client.return_value.__enter__.return_value = mock_client
         mock_client.execute.side_effect = Exception("Test exception")
 
-        with pytest.raises(Exception):
-            query_supplier_data("BRAND", "ARTICLE", "emex")
+        # Instead of expecting an exception, check for empty DataFrame
+        result = query_supplier_data("BRAND", "ARTICLE", "emex")
+        
+        # Verify the result is an empty DataFrame with the expected columns
+        assert isinstance(result, pd.DataFrame)
+        assert result.empty
+        assert list(result.columns) == ["price", "quantity", "supplier_name"]

@@ -37,7 +37,7 @@ class TestExcelService:
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir):
                 with mock.patch("django.conf.settings.MEDIA_URL", "/media/"):
-                    progress, file_url = process_cross_dock_data(test_data, "emex")
+                    progress, file_url = process_cross_dock_data(test_data, "Группа для проценки ТРЕШКА")
                     assert progress == "100%"
 
                     file_path = os.path.join(temp_dir, "exports", os.path.basename(file_url))
@@ -80,7 +80,7 @@ class TestExcelService:
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir):
                 with mock.patch("django.conf.settings.MEDIA_URL", "/media/"):
-                    progress, file_url = process_cross_dock_data(test_data, "emex")
+                    progress, file_url = process_cross_dock_data(test_data, "Группа для проценки ТРЕШКА")
                     assert progress == "100%"
 
                     file_path = os.path.join(temp_dir, "exports", os.path.basename(file_url))
@@ -104,7 +104,7 @@ class TestExcelService:
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir):
                 with mock.patch("django.conf.settings.MEDIA_URL", "/media/"):
-                    progress, file_url = process_cross_dock_data(test_data, "emex")
+                    progress, file_url = process_cross_dock_data(test_data, "Группа для проценки ТРЕШКА")
                     assert progress == "100%"
 
                     file_path = os.path.join(temp_dir, "exports", os.path.basename(file_url))

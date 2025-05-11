@@ -56,14 +56,14 @@ def get_clickhouse_client() -> Client:
         logger.debug("ClickHouse client disconnected")
 
 
-def query_supplier_data(brand: str, sku: str, platform: str, limit: int = 3) -> pd.DataFrame:
+def query_supplier_data(brand: str, sku: str, supplier_list: str, limit: int = 3) -> pd.DataFrame:
     """
     Query ClickHouse for supplier data for a specific brand and SKU.
 
     Args:
         brand: Product brand
         sku: Product SKU (Stock Keeping Unit) - equivalent to article number in the database
-        platform: Platform to query (e.g., 'emex', 'autopiter')
+        supplier_list: Supplier list to query (e.g., 'Группа для проценки ТРЕШКА', 'ОПТ-2')
         limit: Maximum number of suppliers to return (default: 3)
 
     Returns:
@@ -72,94 +72,121 @@ def query_supplier_data(brand: str, sku: str, platform: str, limit: int = 3) -> 
     Raises:
         Exception: If there's an error executing the query
     """
-    logger.info(f"Querying supplier data for {brand}/{sku} on platform {platform}")
+    logger.info(f"Querying supplier data for {brand}/{sku} with supplier list {supplier_list}")
+
+    host = getattr(settings, "CLICKHOUSE_HOST", DEFAULT_CLICKHOUSE_HOST)
+    user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
+    logger.info(f"Using ClickHouse connection: host={host}, user={user}")
+
+    empty_df = pd.DataFrame(columns=["price", "quantity", "supplier_name"])
 
     try:
-        with get_clickhouse_client() as client:
-            # First, get the list of suppliers for the platform
-            suppliers_query = """
-            SELECT DISTINCT dif_id
-            FROM sup_stat.sup_list
-            WHERE has(lists, %(platform)s)
-            """
-            suppliers_result = client.execute(suppliers_query, {'platform': platform})
+        try:
+            with get_clickhouse_client() as client:
+                suppliers_query = """
+                SELECT DISTINCT dif_id
+                FROM sup_stat.sup_list
+                WHERE has(lists, %(supplier_list)s)
+                """
+                logger.info(f"Executing suppliers query with supplier_list={supplier_list}")
+                suppliers_result = client.execute(suppliers_query, {"supplier_list": supplier_list})
+                logger.info(f"Found {len(suppliers_result)} suppliers for supplier list {supplier_list}")
+        except Exception as e:
+            logger.error(f"Error executing suppliers query: {e}")
+            # Try a simpler query to test the connection
+            try:
+                with get_clickhouse_client() as client:
+                    test_query = "SELECT 1"
+                    test_result = client.execute(test_query)
+                    logger.info(f"Test query result: {test_result}")
+            except Exception as test_e:
+                logger.error(f"Error executing test query: {test_e}")
+            return empty_df
 
-            if not suppliers_result:
-                logger.warning(f"No suppliers found for platform {platform}")
-                return pd.DataFrame(columns=["price", "quantity", "supplier_name"])
+        if not suppliers_result:
+            logger.warning(f"No suppliers found for supplier list {supplier_list}")
+            return empty_df
 
-            # Get supplier IDs as a list
-            supplier_ids = [item[0] for item in suppliers_result]
+        supplier_ids = [item[0] for item in suppliers_result]
 
-            # Special handling for Hyundai/Kia brands
-            if brand.lower() in ["hyundai/kia/mobis", "hyundai/kia"]:
-                brand_values = ['hyundai/kia', 'hyundai/kia/mobis']
-            else:
-                brand_values = [brand.lower()]
+        # Special handling for Hyundai/Kia brands which can appear under multiple names
+        if brand.lower() in ["hyundai/kia/mobis", "hyundai/kia"]:
+            brand_values = ["hyundai/kia", "hyundai/kia/mobis"]
+        else:
+            brand_values = [brand.lower()]
 
-            # Query for price data using the same logic as the original query
-            price_query = """
-            WITH recent_prices AS (
-                SELECT DISTINCT
-                    df.p as price,
-                    df.q as quantity,
-                    sl.name as supplier_name,
-                    df.dateupd,
-                    ROW_NUMBER() OVER (PARTITION BY sl.name ORDER BY df.dateupd DESC) AS rn
-                FROM
-                    dif.dif_step_1 AS df
-                INNER JOIN
-                    sup_stat.sup_list AS sl
-                ON
-                    df.supid = sl.dif_id
-                WHERE
-                    lower(df.a) = %(sku_lower)s
-                    AND lower(df.b) IN %(brand_values)s
-                    AND df.dateupd >= now() - interval 2 day
-                    AND df.supid IN %(supplier_ids)s
-                    AND df.q > 0
-            ),
-            ranked_suppliers AS (
-                SELECT DISTINCT
-                    price,
-                    quantity,
-                    supplier_name,
-                    ROW_NUMBER() OVER (PARTITION BY supplier_name ORDER BY price ASC) AS rank
-                FROM recent_prices
-                WHERE rn = 1
-            )
-            SELECT
+        price_query = """
+        WITH recent_prices AS (
+            SELECT DISTINCT
+                df.p as price,
+                df.q as quantity,
+                sl.name as supplier_name,
+                df.dateupd,
+                ROW_NUMBER() OVER (PARTITION BY sl.name ORDER BY df.dateupd DESC) AS rn
+            FROM
+                sup_stat.dif_step_1 AS df
+            INNER JOIN
+                sup_stat.sup_list AS sl
+            ON
+                df.supid = sl.dif_id
+            WHERE
+                lower(df.a) = %(sku_lower)s
+                AND lower(df.b) IN %(brand_values)s
+                AND df.dateupd >= now() - interval 2 day
+                AND df.supid IN %(supplier_ids)s
+                AND df.q > 0
+        ),
+        ranked_suppliers AS (
+            SELECT DISTINCT
                 price,
                 quantity,
-                supplier_name
-            FROM
-                ranked_suppliers
-            WHERE
-                rank = 1
-            ORDER BY
-                price ASC
-            LIMIT %(limit)s;
-            """
+                supplier_name,
+                ROW_NUMBER() OVER (PARTITION BY supplier_name ORDER BY price ASC) AS rank
+            FROM recent_prices
+            WHERE rn = 1
+        )
+        SELECT
+            price,
+            quantity,
+            supplier_name
+        FROM
+            ranked_suppliers
+        WHERE
+            rank = 1
+        ORDER BY
+            price ASC
+        LIMIT %(limit)s;
+        """
 
-            # Prepare parameters for the query
-            query_params = {
-                'sku_lower': sku.lower(),
-                'brand_values': brand_values,
-                'supplier_ids': supplier_ids,
-                'limit': limit
-            }
+        query_params = {
+            "sku_lower": sku.lower(),
+            "brand_values": brand_values,
+            "supplier_ids": supplier_ids,
+            "limit": limit,
+        }
 
-            # Execute the query and convert to DataFrame
-            result = client.execute(price_query, query_params)
+        try:
+            with get_clickhouse_client() as client:
+                logger.info(
+                    f"Executing price query with params: sku={sku.lower()}, brands={brand_values}, supplier_count={len(supplier_ids)}, limit={limit}"
+                )
+                result = client.execute(price_query, query_params)
+                logger.info(f"Query executed successfully, got {len(result)} results")
+        except Exception as e:
+            logger.error(f"Error executing price query: {e}")
+            logger.warning("Returning empty results due to query error")
+            return empty_df
 
-            # Create DataFrame from results
-            if result:
-                result_df = pd.DataFrame(result, columns=["price", "quantity", "supplier_name"])
-            else:
-                result_df = pd.DataFrame(columns=["price", "quantity", "supplier_name"])
+        if result:
+            result_df = pd.DataFrame(result, columns=["price", "quantity", "supplier_name"])
+            logger.info(f"Created DataFrame with {len(result_df)} rows")
+            logger.info(f"First few results: \n{result_df.head()}")
+        else:
+            result_df = empty_df
+            logger.warning(f"No results found for {brand}/{sku} with supplier list {supplier_list}")
 
-            logger.info(f"Found {len(result_df)} supplier results for {brand}/{sku}")
-            return result_df
+        logger.info(f"Found {len(result_df)} supplier results for {brand}/{sku}")
+        return result_df
 
     except Exception as e:
         logger.exception(f"Error querying supplier data: {e}")
