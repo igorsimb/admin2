@@ -6,6 +6,7 @@ https://github.com/HackSoftware/Django-Styleguide
 """
 
 from config.env import BASE_DIR, env
+from config.django_config.logging import LOGGING
 
 env.read_env(BASE_DIR / ".env")
 
@@ -67,6 +68,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 # "django.template.context_processors.settings",
+                "core.context_processors.environment_settings",
             ],
         },
     },

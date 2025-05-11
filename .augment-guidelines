@@ -15,3 +15,38 @@ Type Hinting Guidelines:
 - Avoid excessive type annotations on trivial or obvious code — favor clarity over verbosity
 
 use conventional commits
+
+Best Practices for Testing
+    - Follow the AAA Pattern
+        - Arrange: Set up test data and preconditions
+        - Act: Execute the code being tested
+        - Assert: Verify the results
+
+    - Use Descriptive Test Names
+        - Test names should clearly describe what's being tested
+        - Example: test_process_cross_dock_data_handles_empty_results
+
+    - One Assertion Per Test
+        - Each test should verify a single behavior
+        - Makes tests easier to understand and maintain
+
+    - Use Fixtures for Common Setup
+        - Create reusable test fixtures with pytest's fixture system
+        - Reduces code duplication and improves maintainability
+
+    - Mock External Dependencies
+        - Isolate tests from external systems like ClickHouse
+        - Ensures tests are fast, reliable, and focused
+
+    - Test Edge Cases
+        - Empty data sets
+        - Error conditions
+        - Boundary values
+
+    - Use Parameterized Tests
+        - Test multiple scenarios with different inputs
+        - Reduces code duplication
+
+    - Keep Tests Independent
+        - Tests should not depend on each other
+        - Each test should be able to run in isolation
