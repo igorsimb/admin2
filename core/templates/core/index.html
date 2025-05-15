@@ -6,7 +6,10 @@
     <h1>Main Page</h1>
     <p>Environment: {{ environment }}</p>
 
-    <a href="{% url 'cross_dock:index' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock</a>
+    <div class="flex flex-col space-y-2">
+        <a href="{% url 'cross_dock:index' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock</a>
+        <a href="{% url 'cross_dock:task_list' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock Tasks</a>
+    </div>
 
 </div>
 

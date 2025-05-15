@@ -1,0 +1,138 @@
+{% extends "core/layouts/blank.html" %}
+{% block title %}Cross Dock Tasks{% endblock %}
+{% block content %}
+
+<div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Cross Dock Tasks</h1>
+        <a href="{% url 'cross_dock:index' %}" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            New Task
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[150px]">Файл</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[150px]">Группа</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Пользователь</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Прогресс</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Результат</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Время</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for task in tasks %}
+                <tr class="hover:bg-gray-100">
+                   <td
+                        class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 relative"
+                        style="cursor:copy"
+                        title="{{ task.id }}"
+                        x-data="{ copied: false }"
+                        x-on:click="
+                            navigator.clipboard.writeText('{{ task.id }}');
+                            copied = true;
+                            setTimeout(() => copied = false, 1500);"
+                    >
+                            {{ task.id|truncatechars:8 }}
+                        <span
+                            x-show="copied"
+                            x-cloak
+                            x-transition
+                            class="absolute top-1 ml-2 text-xs text-green-600 bg-white border border-green-300 px-2 pb-0.5 rounded shadow"
+                        >
+                            Скопировано!
+                        </span>
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500 break-words max-w-[150px]">{{ task.filename }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500 break-words max-w-[150px]">{{ task.supplier_group }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.user.profile.display_name|default:"Anonymous" }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">
+                        {% if task.status == "SUCCESS" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Success</span>
+                        {% elif task.status == "RUNNING" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Running</span>
+                        {% elif task.status == "PENDING" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                        {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Failed</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            {% if task.status == "SUCCESS" %}
+                                <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
+                            {% elif task.status == "RUNNING" %}
+                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 50%"></div>
+                            {% elif task.status == "PENDING" %}
+                                <div class="bg-yellow-600 h-2.5 rounded-full" style="width: 10%"></div>
+                            {% else %}
+                                <div class="bg-red-600 h-2.5 rounded-full" style="width: 100%"></div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">
+                        {% if task.status == "SUCCESS" and task.result_url %}
+                            <a href="{{ task.result_url }}" class="text-indigo-600 hover:text-indigo-900">Download</a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.created_at|date:"d.m.Y H:i" }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.execution_time }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">
+                        <select class="border border-gray-300 rounded-md text-sm text-gray-700 bg-white px-2 py-1 w-32">
+                            <option value="" selected disabled>Действия</option>
+                            <option value="delete" class="text-red-700">Удалить</option>
+                            {% if task.status == "RUNNING" %}
+                                <option value="stop" class="text-yellow-700">Остановить</option>
+                            {% endif %}
+                            {% if task.status == "FAILURE" %}
+                                <option value="restart" class="text-green-700">Перезапустить</option>
+                            {% endif %}
+                        </select>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="px-3 py-3 text-center text-sm text-gray-500">No tasks found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if is_paginated %}
+        <div class="flex justify-between items-center mt-4 px-6 py-3">
+            <span class="text-sm text-gray-700">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} tasks
+            </span>
+            <div class="flex space-x-1">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Previous</a>
+                {% endif %}
+
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <span class="px-3 py-1 bg-indigo-600 text-white rounded-md">{{ num }}</span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Next</a>
+                    <a href="?page={{ paginator.num_pages }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Last</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock content %}

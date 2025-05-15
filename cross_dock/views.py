@@ -3,18 +3,18 @@ import os
 import uuid
 
 from django.conf import settings
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.views.generic import ListView
 
+from cross_dock.models import CrossDockTask
 from cross_dock.services.excel_service import process_cross_dock_data_from_file
 
 logger = logging.getLogger(__name__)
 
 
 def index(request):
-    """
-    Main cross-dock page with form for file upload and supplier list selection.
-    """
     supplier_lists = ["Группа для проценки ТРЕШКА", "ОПТ-2"]
 
     context = {
@@ -25,9 +25,6 @@ def index(request):
 
 
 def process_file(request):
-    """
-    Process the uploaded Excel file and selected supplier list.
-    """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -45,7 +42,7 @@ def process_file(request):
 
         filename = f"cross_dock_{uuid.uuid4().hex}.xlsx"
 
-        # Ensure directories exist
+        # Set up directories for file storage
         upload_dir = os.path.join(settings.MEDIA_ROOT, "uploads")
         export_dir = os.path.join(settings.MEDIA_ROOT, "exports")
 
@@ -68,7 +65,7 @@ def process_file(request):
 
             try:
                 with get_clickhouse_client() as client:
-                    # Test the connection with a simple query
+                    # Verify database connectivity before processing
                     test_result = client.execute("SELECT 1")
                     logger.info(f"ClickHouse connection test successful: {test_result}")
             except Exception as db_error:
@@ -81,9 +78,28 @@ def process_file(request):
                 )
 
             try:
+                # First transaction: Create the task with RUNNING status
+                with transaction.atomic():
+                    task = CrossDockTask.objects.create(
+                        status="RUNNING",
+                        filename=uploaded_file.name,
+                        supplier_group=supplier_list,
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+                    # Get the task ID for later reference
+                    task_id = task.id
+
+                # Process the file outside of any transaction to avoid long db locks
                 output_file_path = process_cross_dock_data_from_file(file_path, supplier_list)
                 output_filename = os.path.basename(output_file_path)
                 output_url = f"{settings.MEDIA_URL}exports/{output_filename}"
+
+                # Second transaction: Update the task with SUCCESS status
+                with transaction.atomic():
+                    # Fetch the task again to ensure we have the latest state
+                    task = CrossDockTask.objects.get(id=task_id)
+                    task.mark_as_success(output_url)
+
             finally:
                 try:
                     os.remove(file_path)
@@ -102,8 +118,38 @@ def process_file(request):
             )
         except Exception as e:
             logger.exception(f"Error processing file: {e}")
+
+            # If a task was created, mark it as failed in a separate transaction
+            task_id = getattr(locals().get("task", None), "id", None)
+            if task_id:
+                try:
+                    with transaction.atomic():
+                        task = CrossDockTask.objects.get(id=task_id)
+                        task.mark_as_failed(str(e))
+                except Exception as task_error:
+                    logger.exception(f"Error updating task status: {task_error}")
+
             return JsonResponse({"error": str(e)}, status=500)
 
     except Exception as e:
         logger.exception(f"Error processing file: {e}")
+
+        # If a task was created, mark it as failed in a separate transaction
+        task_id = getattr(locals().get("task", None), "id", None)
+        if task_id:
+            try:
+                with transaction.atomic():
+                    task = CrossDockTask.objects.get(id=task_id)
+                    task.mark_as_failed(str(e))
+            except Exception as task_error:
+                logger.exception(f"Error updating task status: {task_error}")
+
         return JsonResponse({"error": str(e)}, status=500)
+
+
+class CrossDockTaskListView(ListView):
+    model = CrossDockTask
+    template_name = "cross_dock/task_list.html"
+    context_object_name = "tasks"
+    paginate_by = 10
+    ordering = ["-created_at"]
