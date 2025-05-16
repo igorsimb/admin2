@@ -12,8 +12,9 @@ from unittest import mock
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.test import RequestFactory
+from django.urls import reverse
 
 from cross_dock.views import index, process_file
 
@@ -118,6 +119,70 @@ class TestProcessFileValidation:
         assert payload == {"error": "No supplier list selected"}
 
 
+class TestProcessFileSuccess:
+    """Tests for successful process_file execution."""
+
+    @mock.patch("cross_dock.views.process_cross_dock_data_from_file")
+    @mock.patch("cross_dock.views.CrossDockTask.objects.create")
+    @mock.patch("cross_dock.views.CrossDockTask.objects.get")
+    @mock.patch("cross_dock.views.transaction.atomic")
+    def test_redirects_to_task_list_on_success(
+        self, mock_atomic, mock_get_task, mock_create_task, mock_process_data, request_factory, excel_file
+    ):
+        """Test that process_file redirects to task list page on successful processing."""
+        # Mock the transaction.atomic context manager
+        mock_atomic_context = mock.MagicMock()
+        mock_atomic.return_value = mock_atomic_context
+        mock_atomic_context.__enter__.return_value = None
+        mock_atomic_context.__exit__.return_value = None
+
+        # Mock the task creation and retrieval
+        mock_task = mock.MagicMock()
+        mock_task.id = "test-task-id"
+        mock_create_task.return_value = mock_task
+        mock_get_task.return_value = mock_task
+
+        # Mock the data processing
+        mock_process_data.return_value = "/path/to/output.xlsx"
+
+        # Create the request
+        request = request_factory.post(
+            "/cross-dock/process-file/", {"file_upload": excel_file, "supplier_list": "test_list"}
+        )
+
+        # Mock authenticated user
+        request.user = mock.MagicMock()
+        request.user.is_authenticated = True
+
+        with (
+            mock.patch("cross_dock.views.os.makedirs"),
+            mock.patch("builtins.open", mock.mock_open()),
+            mock.patch("cross_dock.views.os.path.join", return_value="mock_path"),
+            mock.patch("cross_dock.views.os.path.basename", return_value="output.xlsx"),
+            mock.patch("cross_dock.views.reverse", return_value="/cross_dock/tasks/"),
+            mock.patch("cross_dock.views.os.remove"),
+            mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client"),
+        ):
+            # Mock the ClickHouse client context manager
+            with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get_client:
+                mock_client = mock.MagicMock()
+                mock_client.__enter__.return_value.execute.return_value = [(1,)]
+                mock_get_client.return_value = mock_client
+
+                response = process_file(request)
+
+        # Check that task was created with correct status
+        mock_create_task.assert_called_once()
+        assert mock_create_task.call_args[1]["status"] == "RUNNING"
+
+        # Check that task was marked as success
+        assert mock_task.mark_as_success.called
+
+        # Check that we're redirected to the task list page
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == "/cross_dock/tasks/"
+
+
 class TestProcessFileErrors:
     """Tests for process_file error handling."""
 
@@ -129,12 +194,12 @@ class TestProcessFileErrors:
             "/cross-dock/process-file/", {"file_upload": excel_file, "supplier_list": "test_list"}
         )
 
-        response = process_file(request)
+        with mock.patch("cross_dock.views.reverse", return_value="/cross_dock/tasks/"):
+            response = process_file(request)
 
-        assert response.status_code == 500
-        payload = json.loads(response.content)
-        assert "error" in payload
-        assert "Directory creation error" in payload["error"]
+        # Check that we're redirected to the task list page
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == "/cross_dock/tasks/"
 
     @mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client")
     def test_handles_database_connection_error(self, mock_get_clickhouse_client, request_factory, excel_file):
@@ -152,16 +217,16 @@ class TestProcessFileErrors:
             mock.patch("cross_dock.views.os.makedirs"),
             mock.patch("builtins.open", mock.mock_open()),
             mock.patch("cross_dock.views.os.path.join", return_value="mock_path"),
+            mock.patch("cross_dock.views.reverse", return_value="/cross_dock/tasks/"),
         ):
             response = process_file(request)
 
-        assert response.status_code == 500
-        payload = json.loads(response.content)
-        assert "error" in payload
-        assert "Could not connect to the database" in payload["error"]
+        # Check that we're redirected to the task list page
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == "/cross_dock/tasks/"
 
-    def test_logs_and_returns_error_for_processing_exceptions(self):
-        """Test that processing errors are logged and returned as 500 responses."""
+    def test_logs_and_redirects_for_processing_exceptions(self):
+        """Test that processing errors are logged and redirected to task list."""
         from cross_dock.views import logger
 
         # Simulate the error handling in the view
@@ -170,17 +235,18 @@ class TestProcessFileErrors:
                 raise Exception("Processing error")
             except Exception as e:
                 logger.exception(f"Error processing file: {e}")
-                return JsonResponse({"error": str(e)}, status=500)
+                # Now we redirect instead of returning JSON
+                return HttpResponseRedirect("/cross_dock/tasks/")
 
         with mock.patch.object(logger, "exception") as mock_logger_exception:
             response = simulate_processing_error()
 
         mock_logger_exception.assert_called_once()
         assert "Error processing file" in mock_logger_exception.call_args[0][0]
-        assert response.status_code == 500
 
-        response_data = json.loads(response.content.decode("utf-8"))
-        assert response_data["error"] == "Processing error"
+        # Check that we're redirected to the task list page
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == "/cross_dock/tasks/"
 
 
 class TestFileCleanup:
@@ -224,20 +290,21 @@ class TestFileCleanup:
 
 
 @pytest.mark.parametrize(
-    "http_method,expected_status,expected_error",
+    "http_method",
     [
-        ("get", 405, "Method not allowed"),
-        ("put", 405, "Method not allowed"),
-        ("delete", 405, "Method not allowed"),
+        "get",
+        "put",
+        "delete",
     ],
 )
-def test_process_file_rejects_non_post_methods(request_factory, http_method, expected_status, expected_error):
+def test_process_file_rejects_non_post_methods(request_factory, http_method):
     """Test that process_file rejects all non-POST HTTP methods."""
     method = getattr(request_factory, http_method)
     request = method("/cross-dock/process-file/")
 
     response = process_file(request)
 
-    assert response.status_code == expected_status
+    # We still return a JSON response for method validation errors
+    assert response.status_code == 405
     payload = json.loads(response.content)
-    assert payload == {"error": expected_error}
+    assert payload == {"error": "Method not allowed"}

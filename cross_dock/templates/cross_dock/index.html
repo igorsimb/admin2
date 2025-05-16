@@ -12,7 +12,7 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-md p-6">
-        <form id="cross-dock-form" method="post" enctype="multipart/form-data" action="{% url 'cross_dock:process_file' %}">
+        <form method="post" enctype="multipart/form-data" action="{% url 'cross_dock:process_file' %}">
             {% csrf_token %}
 
             <!-- Supplier List Selection -->
@@ -52,16 +52,7 @@
         </form>
     </div>
 
-    <!-- Result Area -->
-    <div id="result-area" class="mt-8 hidden">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Processing</h2>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
-            </div>
-            <p id="status-message" class="text-gray-700">Starting process...</p>
-        </div>
-    </div>
+    <!-- No result area needed as we'll redirect to task list -->
 </div>
 
 <script>
@@ -127,70 +118,8 @@
         }
     }
 
-    // Form submission handling
-    document.getElementById('cross-dock-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // Show the result area
-        document.getElementById('result-area').classList.remove('hidden');
-        document.getElementById('status-message').textContent = 'Uploading file...';
-
-        // Submit the form via AJAX
-        const formData = new FormData(this);
-        fetch(this.action, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                const errorMessage = document.getElementById('status-message');
-                errorMessage.textContent = 'Error: ' + data.error;
-                errorMessage.classList.add('text-red-600');
-
-                document.getElementById('progress-bar').style.width = '0%';
-                document.getElementById('progress-bar').classList.remove('bg-blue-600');
-                document.getElementById('progress-bar').classList.add('bg-red-600');
-
-                // Add a retry button
-                const resultArea = document.getElementById('result-area').querySelector('div');
-
-                // Check if retry button already exists
-                if (!document.getElementById('retry-button')) {
-                    const retryButton = document.createElement('button');
-                    retryButton.id = 'retry-button';
-                    retryButton.className = 'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mt-4';
-                    retryButton.textContent = 'Try Again';
-                    retryButton.onclick = function() {
-                        window.location.reload();
-                    };
-
-                    resultArea.appendChild(retryButton);
-                }
-            } else {
-                document.getElementById('status-message').textContent = data.message;
-                document.getElementById('progress-bar').style.width = '100%';
-
-                // Add download link if output_url is available
-                if (data.output_url) {
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = data.output_url;
-                    downloadLink.className = 'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-4';
-                    downloadLink.textContent = 'Download Results';
-                    downloadLink.download = '';
-
-                    const resultArea = document.getElementById('result-area').querySelector('div');
-                    resultArea.appendChild(downloadLink);
-                }
-            }
-        })
-        .catch(error => {
-            document.getElementById('status-message').textContent = 'Error: ' + error.message;
-            document.getElementById('progress-bar').style.width = '0%';
-            document.getElementById('progress-bar').classList.remove('bg-blue-600');
-            document.getElementById('progress-bar').classList.add('bg-red-600');
-        });
-    });
+    // No need to handle form submission with JavaScript as we're using standard form submission
+    // The form will be submitted directly to the server and the user will be redirected to the task list page
 </script>
 
 {% endblock content %}
