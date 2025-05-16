@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "debug_toolbar",
     "django_htmx",
+    "template_partials",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

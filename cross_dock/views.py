@@ -5,7 +5,8 @@ import uuid
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.generic import ListView
 
 from cross_dock.models import CrossDockTask
@@ -22,6 +23,14 @@ def index(request):
     }
 
     return render(request, "cross_dock/index.html", context)
+
+
+class CrossDockTaskListView(ListView):
+    model = CrossDockTask
+    template_name = "cross_dock/task_list.html"
+    context_object_name = "tasks"
+    paginate_by = 10
+    ordering = ["-created_at"]
 
 
 def process_file(request):
@@ -42,7 +51,6 @@ def process_file(request):
 
         filename = f"cross_dock_{uuid.uuid4().hex}.xlsx"
 
-        # Set up directories for file storage
         upload_dir = os.path.join(settings.MEDIA_ROOT, "uploads")
         export_dir = os.path.join(settings.MEDIA_ROOT, "exports")
 
@@ -52,7 +60,7 @@ def process_file(request):
             logger.info(f"Created directories: {upload_dir}, {export_dir}")
         except Exception as e:
             logger.error(f"Error creating directories: {e}")
-            return JsonResponse({"error": f"Error creating directories: {e}"}, status=500)
+            return redirect(reverse("cross_dock:task_list"))
 
         file_path = os.path.join(upload_dir, filename)
 
@@ -65,20 +73,15 @@ def process_file(request):
 
             try:
                 with get_clickhouse_client() as client:
-                    # Verify database connectivity before processing
+                    # Verify database connectivity before starting the long-running process
                     test_result = client.execute("SELECT 1")
                     logger.info(f"ClickHouse connection test successful: {test_result}")
             except Exception as db_error:
                 logger.error(f"ClickHouse connection error: {db_error}")
-                return JsonResponse(
-                    {
-                        "error": f"Could not connect to the database. Please check your connection settings or try again later. Error: {db_error!s}"
-                    },
-                    status=500,
-                )
+                return redirect(reverse("cross_dock:task_list"))
 
             try:
-                # First transaction: Create the task with RUNNING status
+                # Use transaction to ensure task is properly created in the database
                 with transaction.atomic():
                     task = CrossDockTask.objects.create(
                         status="RUNNING",
@@ -86,7 +89,6 @@ def process_file(request):
                         supplier_group=supplier_list,
                         user=request.user if request.user.is_authenticated else None,
                     )
-                    # Get the task ID for later reference
                     task_id = task.id
 
                 # Process the file outside of any transaction to avoid long db locks
@@ -94,7 +96,7 @@ def process_file(request):
                 output_filename = os.path.basename(output_file_path)
                 output_url = f"{settings.MEDIA_URL}exports/{output_filename}"
 
-                # Second transaction: Update the task with SUCCESS status
+                # Update task status in a separate transaction
                 with transaction.atomic():
                     # Fetch the task again to ensure we have the latest state
                     task = CrossDockTask.objects.get(id=task_id)
@@ -107,19 +109,11 @@ def process_file(request):
                 except Exception as e:
                     logger.warning(f"Failed to remove temporary upload file {file_path}: {e}")
 
-            return JsonResponse(
-                {
-                    "status": "success",
-                    "message": "File processed successfully",
-                    "filename": filename,
-                    "supplier_list": supplier_list,
-                    "output_url": output_url,
-                }
-            )
+            return redirect(reverse("cross_dock:task_list"))
         except Exception as e:
             logger.exception(f"Error processing file: {e}")
 
-            # If a task was created, mark it as failed in a separate transaction
+            # Try to mark the task as failed if it was created
             task_id = getattr(locals().get("task", None), "id", None)
             if task_id:
                 try:
@@ -129,12 +123,12 @@ def process_file(request):
                 except Exception as task_error:
                     logger.exception(f"Error updating task status: {task_error}")
 
-            return JsonResponse({"error": str(e)}, status=500)
+            return redirect(reverse("cross_dock:task_list"))
 
     except Exception as e:
         logger.exception(f"Error processing file: {e}")
 
-        # If a task was created, mark it as failed in a separate transaction
+        # Try to mark the task as failed if it was created
         task_id = getattr(locals().get("task", None), "id", None)
         if task_id:
             try:
@@ -144,12 +138,4 @@ def process_file(request):
             except Exception as task_error:
                 logger.exception(f"Error updating task status: {task_error}")
 
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-class CrossDockTaskListView(ListView):
-    model = CrossDockTask
-    template_name = "cross_dock/task_list.html"
-    context_object_name = "tasks"
-    paginate_by = 10
-    ordering = ["-created_at"]
+        return redirect(reverse("cross_dock:task_list"))
