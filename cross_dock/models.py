@@ -5,8 +5,10 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from common.models import BaseModel
 
-class CrossDockTask(models.Model):
+
+class CrossDockTask(BaseModel):
     """Model for tracking cross-dock tasks."""
 
     STATUS_CHOICES: ClassVar[list[tuple[str, str]]] = [
@@ -23,8 +25,6 @@ class CrossDockTask(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     result_url = models.URLField(null=True, blank=True)
     error_message = models.TextField(null=True, blank=True)
 
@@ -100,4 +100,32 @@ class CrossDockTask(models.Model):
             models.Index(fields=["status"]),
             models.Index(fields=["created_at"]),
             models.Index(fields=["supplier_group"]),
+        ]
+
+
+class TaskComment(BaseModel):
+    """Model for comments on cross-dock tasks."""
+
+    task = models.ForeignKey(
+        CrossDockTask, on_delete=models.CASCADE, related_name="comments", help_text="Task this comment belongs to"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cross_dock_comments",
+        help_text="User who created this comment",
+    )
+    text = models.TextField(help_text="Comment text")
+
+    def __str__(self):
+        return f"Comment on {self.task.id} by {self.user or 'Anonymous'}"
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["task"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["created_at"]),
         ]
