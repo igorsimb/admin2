@@ -18,10 +18,7 @@ class Profile(models.Model):
 
     @property
     def name(self):
-        if self.display_name:
-            name = self.display_name
-        else:
-            name = self.user.username
+        name = self.display_name if self.display_name else self.user.username
         return name
 
     @property

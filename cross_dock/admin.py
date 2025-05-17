@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CrossDockTask
+from .models import CrossDockTask, TaskComment
 
 
 @admin.register(CrossDockTask)
@@ -17,7 +17,7 @@ class CrossDockTaskAdmin(admin.ModelAdmin):
         This prevents N+1 queries when displaying the admin list view.
         """
         queryset = super().get_queryset(request)
-        return queryset.select_related('user')
+        return queryset.select_related("user")
 
     @admin.action(description="Mark selected tasks as failed")
     def mark_as_failed(self, request, queryset):
@@ -28,3 +28,20 @@ class CrossDockTaskAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated_count} tasks marked as failed.")
 
     actions = ["mark_as_failed"]
+
+
+@admin.register(TaskComment)
+class TaskCommentAdmin(admin.ModelAdmin):
+    list_display = ("id", "task", "user", "text", "created_at")
+    list_filter = ("created_at", "user")
+    search_fields = ("text", "user__username", "task__id")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+
+    def get_queryset(self, request):
+        """
+        Override default queryset to use select_related for the user and task fields.
+        This prevents N+1 queries when displaying the admin list view.
+        """
+        queryset = super().get_queryset(request)
+        return queryset.select_related("user", "task")
