@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "cross_dock",
     "accounts",
     # Third-party
+    "django_celery_results",
     "django_extensions",
     "debug_toolbar",
     "django_htmx",
@@ -95,6 +96,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
@@ -149,3 +154,13 @@ ACCOUNT_UNIQUE_EMAIL = True
 CLICKHOUSE_HOST = env("CLICKHOUSE_HOST", default="localhost")
 CLICKHOUSE_USER = env("CLICKHOUSE_USER", default="default")
 CLICKHOUSE_PASSWORD = env("CLICKHOUSE_PASSWORD", default="")
+
+# Celery settings
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Europe/Moscow"
+CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes

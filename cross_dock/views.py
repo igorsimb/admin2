@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import uuid
@@ -5,12 +6,12 @@ import uuid
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import ListView
 
-from cross_dock.models import CrossDockTask
-from cross_dock.services.excel_service import process_cross_dock_data_from_file
+from cross_dock.models import CrossDockTask, TaskComment
+from cross_dock.tasks import process_file_task
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,33 @@ class CrossDockTaskListView(ListView):
     ordering = ["-created_at"]
 
 
+def task_detail(request, task_id):
+    """
+    Display details for a specific task and handle comments.
+
+    This view shows task details and allows users to add comments.
+    """
+    task = get_object_or_404(CrossDockTask, id=task_id)
+    comments = task.comments.all().select_related("user", "user__profile")
+
+    # Handle new comment submission
+    if request.method == "POST" and request.user.is_authenticated:
+        comment_text = request.POST.get("comment_text")
+        if comment_text:
+            TaskComment.objects.create(task=task, user=request.user, text=comment_text)
+            # Redirect to avoid form resubmission
+            return redirect("cross_dock:task_detail", task_id=task_id)
+
+    return render(request, "cross_dock/task_detail.html", {"task": task, "comments": comments})
+
+
 def process_file(request):
+    """
+    Process the uploaded Excel file and selected supplier list.
+
+    This view handles file upload validation, creates a task record,
+    and submits a Celery task for asynchronous processing.
+    """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -73,45 +100,37 @@ def process_file(request):
 
             try:
                 with get_clickhouse_client() as client:
-                    # Verify database connectivity before starting the long-running process
+                    # Verify database connectivity before starting the task
                     test_result = client.execute("SELECT 1")
                     logger.info(f"ClickHouse connection test successful: {test_result}")
             except Exception as db_error:
                 logger.error(f"ClickHouse connection error: {db_error}")
+                # Clean up the uploaded file
+                with contextlib.suppress(Exception):
+                    os.remove(file_path)
                 return redirect(reverse("cross_dock:task_list"))
 
-            try:
-                # Use transaction to ensure task is properly created in the database
-                with transaction.atomic():
-                    task = CrossDockTask.objects.create(
-                        status="RUNNING",
-                        filename=uploaded_file.name,
-                        supplier_group=supplier_list,
-                        user=request.user if request.user.is_authenticated else None,
-                    )
-                    task_id = task.id
+            # Create task record with PENDING status
+            with transaction.atomic():
+                task = CrossDockTask.objects.create(
+                    status="PENDING",
+                    filename=uploaded_file.name,
+                    supplier_group=supplier_list,
+                    user=request.user if request.user.is_authenticated else None,
+                )
 
-                # Process the file outside of any transaction to avoid long db locks
-                output_file_path = process_cross_dock_data_from_file(file_path, supplier_list)
-                output_filename = os.path.basename(output_file_path)
-                output_url = f"{settings.MEDIA_URL}exports/{output_filename}"
+            # Submit Celery task
+            celery_task = process_file_task.delay(
+                file_path=file_path, supplier_list=supplier_list, task_id=str(task.id)
+            )
 
-                # Update task status in a separate transaction
-                with transaction.atomic():
-                    # Fetch the task again to ensure we have the latest state
-                    task = CrossDockTask.objects.get(id=task_id)
-                    task.mark_as_success(output_url)
+            logger.info(f"Submitted Celery task {celery_task.id} for CrossDockTask {task.id}")
 
-            finally:
-                try:
-                    os.remove(file_path)
-                    logger.info(f"Removed temporary upload file: {file_path}")
-                except Exception as e:
-                    logger.warning(f"Failed to remove temporary upload file {file_path}: {e}")
-
+            # Redirect to task list
             return redirect(reverse("cross_dock:task_list"))
+
         except Exception as e:
-            logger.exception(f"Error processing file: {e}")
+            logger.exception(f"Error submitting task: {e}")
 
             # Try to mark the task as failed if it was created
             task_id = getattr(locals().get("task", None), "id", None)
@@ -123,19 +142,14 @@ def process_file(request):
                 except Exception as task_error:
                     logger.exception(f"Error updating task status: {task_error}")
 
+            # Clean up the uploaded file
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
             return redirect(reverse("cross_dock:task_list"))
 
     except Exception as e:
         logger.exception(f"Error processing file: {e}")
-
-        # Try to mark the task as failed if it was created
-        task_id = getattr(locals().get("task", None), "id", None)
-        if task_id:
-            try:
-                with transaction.atomic():
-                    task = CrossDockTask.objects.get(id=task_id)
-                    task.mark_as_failed(str(e))
-            except Exception as task_error:
-                logger.exception(f"Error updating task status: {task_error}")
-
         return redirect(reverse("cross_dock:task_list"))

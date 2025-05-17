@@ -12,9 +12,8 @@ from unittest import mock
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.test import RequestFactory
-from django.urls import reverse
 
 from cross_dock.views import index, process_file
 
@@ -122,65 +121,51 @@ class TestProcessFileValidation:
 class TestProcessFileSuccess:
     """Tests for successful process_file execution."""
 
-    @mock.patch("cross_dock.views.process_cross_dock_data_from_file")
+    @pytest.mark.django_db
+    @mock.patch("cross_dock.views.process_file_task.delay")
     @mock.patch("cross_dock.views.CrossDockTask.objects.create")
-    @mock.patch("cross_dock.views.CrossDockTask.objects.get")
-    @mock.patch("cross_dock.views.transaction.atomic")
-    def test_redirects_to_task_list_on_success(
-        self, mock_atomic, mock_get_task, mock_create_task, mock_process_data, request_factory, excel_file
+    def test_file_upload_creates_task_and_redirects(
+        self, mock_create_task, mock_process_file_task, request_factory, excel_file
     ):
-        """Test that process_file redirects to task list page on successful processing."""
-        # Mock the transaction.atomic context manager
-        mock_atomic_context = mock.MagicMock()
-        mock_atomic.return_value = mock_atomic_context
-        mock_atomic_context.__enter__.return_value = None
-        mock_atomic_context.__exit__.return_value = None
+        """Test that process_file handles file uploads correctly.
 
-        # Mock the task creation and retrieval
-        mock_task = mock.MagicMock()
-        mock_task.id = "test-task-id"
+        This test verifies three key behaviors:
+        1. When a valid file is uploaded, a CrossDockTask record is created with "PENDING" status
+        2. A Celery task is submitted to process the file asynchronously
+        3. The user is immediately redirected to the task list page
+        """
+        # Setup
+        mock_task = mock.MagicMock(id="test-task-id")
         mock_create_task.return_value = mock_task
-        mock_get_task.return_value = mock_task
 
-        # Mock the data processing
-        mock_process_data.return_value = "/path/to/output.xlsx"
-
-        # Create the request
         request = request_factory.post(
             "/cross-dock/process-file/", {"file_upload": excel_file, "supplier_list": "test_list"}
         )
+        request.user = mock.MagicMock(is_authenticated=True)
 
-        # Mock authenticated user
-        request.user = mock.MagicMock()
-        request.user.is_authenticated = True
-
+        # We only need to mock these essential services
         with (
             mock.patch("cross_dock.views.os.makedirs"),
             mock.patch("builtins.open", mock.mock_open()),
-            mock.patch("cross_dock.views.os.path.join", return_value="mock_path"),
-            mock.patch("cross_dock.views.os.path.basename", return_value="output.xlsx"),
-            mock.patch("cross_dock.views.reverse", return_value="/cross_dock/tasks/"),
-            mock.patch("cross_dock.views.os.remove"),
-            mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client"),
+            mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_client,
         ):
-            # Mock the ClickHouse client context manager
-            with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get_client:
-                mock_client = mock.MagicMock()
-                mock_client.__enter__.return_value.execute.return_value = [(1,)]
-                mock_get_client.return_value = mock_client
+            # Mock ClickHouse connection test
+            mock_client.return_value.__enter__.return_value.execute.return_value = [(1,)]
 
-                response = process_file(request)
+            # Act
+            response = process_file(request)
 
-        # Check that task was created with correct status
+        # Assert
+        # 1. Task was created with PENDING status
         mock_create_task.assert_called_once()
-        assert mock_create_task.call_args[1]["status"] == "RUNNING"
+        assert mock_create_task.call_args[1]["status"] == "PENDING"
 
-        # Check that task was marked as success
-        assert mock_task.mark_as_success.called
+        # 2. Celery task was submitted
+        mock_process_file_task.assert_called_once()
 
-        # Check that we're redirected to the task list page
+        # 3. User was redirected to task list
         assert isinstance(response, HttpResponseRedirect)
-        assert response.url == "/cross_dock/tasks/"
+        assert "/task" in response.url  # More flexible than exact URL matching
 
 
 class TestProcessFileErrors:

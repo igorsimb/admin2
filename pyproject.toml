@@ -5,9 +5,11 @@ description = "Add your description here"
 requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
+    "celery>=5.5.2",
     "clickhouse-driver>=0.2.9",
     "django>=5.2",
     "django-allauth>=65.7.0",
+    "django-celery-results>=2.6.0",
     "django-cleanup>=9.0.0",
     "django-environ>=0.12.0",
     "django-htmx>=1.23.0",
@@ -16,6 +18,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
     "pillow>=11.2.1",
+    "redis>=6.1.0",
 ]
 
 [tool.uv]
