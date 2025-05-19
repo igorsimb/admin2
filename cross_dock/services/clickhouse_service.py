@@ -56,7 +56,7 @@ def get_clickhouse_client() -> Client:
         logger.debug("ClickHouse client disconnected")
 
 
-def query_supplier_data(brand: str, sku: str, supplier_list: str, limit: int = 3) -> pd.DataFrame:
+def query_supplier_data(brand: str, sku: str, supplier_list: str) -> pd.DataFrame:
     """
     Query ClickHouse for supplier data for a specific brand and SKU.
 
@@ -64,10 +64,10 @@ def query_supplier_data(brand: str, sku: str, supplier_list: str, limit: int = 3
         brand: Product brand
         sku: Product SKU (Stock Keeping Unit) - equivalent to article number in the database
         supplier_list: Supplier list to query (e.g., 'Группа для проценки ТРЕШКА', 'ОПТ-2')
-        limit: Maximum number of suppliers to return (default: 3)
 
     Returns:
         DataFrame with supplier data sorted by price (price, quantity, supplier_name)
+        Limited to 3 suppliers maximum
 
     Raises:
         Exception: If there's an error executing the query
@@ -155,20 +155,19 @@ def query_supplier_data(brand: str, sku: str, supplier_list: str, limit: int = 3
             rank = 1
         ORDER BY
             price ASC
-        LIMIT %(limit)s;
+        LIMIT 3;
         """
 
         query_params = {
             "sku_lower": sku.lower(),
             "brand_values": brand_values,
             "supplier_ids": supplier_ids,
-            "limit": limit,
         }
 
         try:
             with get_clickhouse_client() as client:
                 logger.info(
-                    f"Executing price query with params: sku={sku.lower()}, brands={brand_values}, supplier_count={len(supplier_ids)}, limit={limit}"
+                    f"Executing price query with params: sku={sku.lower()}, brands={brand_values}, supplier_count={len(supplier_ids)}"
                 )
                 result = client.execute(price_query, query_params)
                 logger.info(f"Query executed successfully, got {len(result)} results")
