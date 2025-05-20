@@ -121,7 +121,6 @@ class TestProcessFileValidation:
 class TestProcessFileSuccess:
     """Tests for successful process_file execution."""
 
-    @pytest.mark.django_db
     @mock.patch("cross_dock.views.process_file_task.delay")
     @mock.patch("cross_dock.views.CrossDockTask.objects.create")
     def test_file_upload_creates_task_and_redirects(
