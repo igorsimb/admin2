@@ -76,6 +76,10 @@ def process_file(request):
         if not supplier_list:
             return JsonResponse({"error": "No supplier list selected"}, status=400)
 
+        # Read use_mv flag from POST (treat '1' or 'true' as True)
+        use_mv_raw = request.POST.get("use_mv", "0").lower()
+        use_mv = use_mv_raw in ("1", "true")
+
         filename = f"cross_dock_{uuid.uuid4().hex}.xlsx"
 
         upload_dir = os.path.join(settings.MEDIA_ROOT, "uploads")
@@ -119,12 +123,12 @@ def process_file(request):
                     user=request.user if request.user.is_authenticated else None,
                 )
 
-            # Submit Celery task
+            # Submit Celery task (add use_mv argument)
             celery_task = process_file_task.delay(
-                file_path=file_path, supplier_list=supplier_list, task_id=str(task.id)
+                file_path=file_path, supplier_list=supplier_list, task_id=str(task.id), use_mv=use_mv
             )
 
-            logger.info(f"Submitted Celery task {celery_task.id} for CrossDockTask {task.id}")
+            logger.info(f"Submitted Celery task {celery_task.id} for CrossDockTask {task.id} (use_mv={use_mv})")
 
             # Redirect to task list
             return redirect(reverse("cross_dock:task_list"))

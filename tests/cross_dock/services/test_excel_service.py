@@ -18,7 +18,7 @@ from cross_dock.services.excel_service import process_cross_dock_data
 class TestExcelService:
     """Test suite for Excel service functions."""
 
-    @mock.patch("cross_dock.services.excel_service.query_supplier_data")
+    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
     def test_process_cross_dock_data(self, mock_query_supplier_data):
         """Test processing cross-dock data and generating an Excel file."""
         mock_query_supplier_data.return_value = pd.DataFrame(
@@ -70,7 +70,7 @@ class TestExcelService:
                     assert sheet.cell(row=2, column=5).value == 5
                     assert sheet.cell(row=2, column=6).value == "Supplier A"
 
-    @mock.patch("cross_dock.services.excel_service.query_supplier_data")
+    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
     def test_process_cross_dock_data_empty_results(self, mock_query_supplier_data):
         """Test handling of empty query results."""
         mock_query_supplier_data.return_value = pd.DataFrame(columns=["price", "quantity", "supplier_name"])
@@ -94,7 +94,7 @@ class TestExcelService:
                     assert sheet.cell(row=2, column=5).value is None
                     assert sheet.cell(row=2, column=6).value is None
 
-    @mock.patch("cross_dock.services.excel_service.query_supplier_data")
+    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
     def test_process_cross_dock_data_exception(self, mock_query_supplier_data):
         """Test error handling during data processing."""
         mock_query_supplier_data.side_effect = Exception("Test exception")

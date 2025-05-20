@@ -43,6 +43,19 @@
                 <div id="file-name" class="mt-2 text-sm text-gray-500"></div>
             </div>
 
+            <!-- Hidden input for use_mv -->
+            <input type="hidden" id="use_mv" name="use_mv" value="0" />
+
+            <!-- Supplier Query Buttons (Step 2: backend integration) -->
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <button type="button" id="legacy-query-btn" class="inline-flex justify-center py-2 px-4 border border-gray-400 shadow-sm text-sm font-medium rounded-md text-gray-800 !bg-white !hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Legacy Supplier Query
+                </button>
+                <button type="button" id="mv-query-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white !bg-green-600 !hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Fast Supplier Query (MV)
+                </button>
+            </div>
+
             <!-- Submit Button -->
             <div class="flex justify-end">
                 <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -118,8 +131,16 @@
         }
     }
 
-    // No need to handle form submission with JavaScript as we're using standard form submission
-    // The form will be submitted directly to the server and the user will be redirected to the task list page
+    // Supplier Query Buttons (Step 2: backend integration)
+    document.getElementById('legacy-query-btn').addEventListener('click', function() {
+        document.getElementById('use_mv').value = '0';
+        this.form.submit();
+    });
+    document.getElementById('mv-query-btn').addEventListener('click', function() {
+        document.getElementById('use_mv').value = '1';
+        this.form.submit();
+    });
+
 </script>
 
 {% endblock content %}

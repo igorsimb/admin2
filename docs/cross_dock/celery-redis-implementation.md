@@ -149,8 +149,8 @@ Add the following to config/django_config/base.py:
 
 ```python
 # Celery settings
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6378/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6378/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -168,8 +168,8 @@ Update .env.example with:
 
 ```
 # Redis/Celery settings
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6378/0
+CELERY_RESULT_BACKEND=redis://localhost:6378/0
 ```
 
 ## 6. Task Definition
@@ -838,8 +838,8 @@ sudo systemctl start celery.service
 Ensure the following environment variables are set in production:
 
 ```
-CELERY_BROKER_URL=redis://redis-host:6379/0
-CELERY_RESULT_BACKEND=redis://redis-host:6379/0
+CELERY_BROKER_URL=redis://redis-host:6378/0
+CELERY_RESULT_BACKEND=redis://redis-host:6378/0
 ```
 
 ## 13. Implementation Timeline
