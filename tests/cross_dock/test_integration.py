@@ -18,7 +18,7 @@ from cross_dock.services.excel_service import process_cross_dock_data_from_file
 class TestIntegration:
     """Integration test suite for cross-dock functionality."""
 
-    @mock.patch("cross_dock.services.excel_service.query_supplier_data")
+    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
     def test_process_cross_dock_data_from_file(self, mock_query_supplier_data):
         """Test processing cross-dock data from a file."""
         mock_query_supplier_data.return_value = pd.DataFrame(

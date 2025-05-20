@@ -46,8 +46,8 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 # config/django_config/base.py
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6378/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6378/0")
 ```
 
 ### 2.3. Task Definition
@@ -156,8 +156,8 @@ Added tests for the Celery task and views:
 
 4. Update the .env file with Redis settings:
    ```
-   CELERY_BROKER_URL=redis://localhost:6379/0
-   CELERY_RESULT_BACKEND=redis://localhost:6379/0
+   CELERY_BROKER_URL=redis://localhost:6378/0
+   CELERY_RESULT_BACKEND=redis://localhost:6378/0
    ```
 
 ## 4. Benefits

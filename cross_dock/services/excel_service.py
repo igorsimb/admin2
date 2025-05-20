@@ -12,29 +12,29 @@ import pandas as pd
 from django.conf import settings
 
 from common.utils.excel import create_workbook, save_workbook
-from cross_dock.services.clickhouse_service import query_supplier_data
 
 logger = logging.getLogger(__name__)
 
 
-def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str) -> tuple[str, str]:
+def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_mv: bool = False) -> tuple[str, str]:
     """
     Process cross-dock data and generate Excel file.
 
     Args:
         data: List of dictionaries containing brand and article information
         supplier_list: Supplier list to query (e.g., 'Группа для проценки ТРЕШКА', 'ОПТ-2')
+        use_mv: Whether to use the MV-based query (default: False)
 
     Returns:
         tuple: (progress percentage, file URL)
     """
-    logger.info(f"Processing cross-dock data for supplier list {supplier_list}")
+    logger.info(f"Processing cross-dock data for supplier list {supplier_list} (use_mv={use_mv})")
     logger.info(f"Received {len(data)} records to process")
 
     # Log a sample of the data
     if data:
         sample = data[0]
-        logger.info(f"Sample record: {sample}")
+        logger.debug(f"Sample record: {sample}")
 
     wb = create_workbook()
     result_sheet = wb.active
@@ -59,15 +59,37 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str) -> t
 
     total_rows = len(data)
     processed_rows = 0
+    error_count = 0
+
+    if use_mv:
+        # Extract all unique (brand, sku) pairs (normalized)
+        brand_sku_pairs = set()
+        for item in data:
+            try:
+                brand = str(item["Бренд"]).strip().lower()
+                article = str(item["Артикул"]).strip().lower()
+                brand_sku_pairs.add((brand, article))
+            except Exception as e:
+                logger.error(f"Error extracting brand/sku from item: {item}, error: {e}")
+        brand_sku_pairs = list(brand_sku_pairs)
+        # Query all at once
+        from cross_dock.services.clickhouse_service import query_supplier_data_mv
+
+        batch_df = query_supplier_data_mv(brand_sku_pairs, supplier_list)
+        # Build a lookup: (brand_lower, sku_lower) -> list of rows
+        batch_lookup = {}
+        for _, row in batch_df.iterrows():
+            key = (row["brand_lower"], row["sku_lower"])
+            batch_lookup.setdefault(key, []).append(row)
 
     for row_num, item in enumerate(data, start=2):
         try:
             brand = item["Бренд"]
             article = item["Артикул"]
             logger.info(f"Processing row {row_num - 1}/{total_rows}: {brand}, {article}")
-        # fill the row with blanks (for alignment) and continue
         except KeyError as e:
             logger.error(f"KeyError in row {row_num - 1}: {e}. Item keys: {item.keys()}")
+            error_count += 1
             for i in range(3):
                 col_offset = i * 3
                 for c in range(4, 7):
@@ -75,33 +97,50 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str) -> t
             continue
 
         sku = f"{brand}|{article}"
-
         result_sheet.cell(row=row_num, column=1, value=sku)
         result_sheet.cell(row=row_num, column=2, value=brand)
         result_sheet.cell(row=row_num, column=3, value=article)
         try:
-            price_results = query_supplier_data(brand, article, supplier_list)
-
-            for i, (_, price_row) in enumerate(price_results.iterrows(), start=0):
-                if i < 3:  # Only use the first 3 results
+            if use_mv:
+                # Use batch lookup
+                key = (str(brand).strip().lower(), str(article).strip().lower())
+                price_rows = batch_lookup.get(key, [])
+                for i, price_row in enumerate(price_rows[:3]):
                     price = price_row["price"]
                     quantity = price_row["quantity"]
                     supplier_name = price_row["supplier_name"]
-
                     col_offset = i * 3
                     result_sheet.cell(row=row_num, column=4 + col_offset, value=float(price))
-                    safe_qty = int(quantity) if pd.notna(quantity) else None  # Handle possible NaN/None in quantity
+                    safe_qty = int(quantity) if pd.notna(quantity) else None
                     result_sheet.cell(row=row_num, column=5 + col_offset, value=safe_qty)
                     result_sheet.cell(row=row_num, column=6 + col_offset, value=str(supplier_name))
-            for i in range(len(price_results), 3):
-                col_offset = i * 3
-                result_sheet.cell(row=row_num, column=4 + col_offset, value=None)
-                result_sheet.cell(row=row_num, column=5 + col_offset, value=None)
-                result_sheet.cell(row=row_num, column=6 + col_offset, value=None)
+                for i in range(len(price_rows), 3):
+                    col_offset = i * 3
+                    result_sheet.cell(row=row_num, column=4 + col_offset, value=None)
+                    result_sheet.cell(row=row_num, column=5 + col_offset, value=None)
+                    result_sheet.cell(row=row_num, column=6 + col_offset, value=None)
+            else:
+                from cross_dock.services.clickhouse_service import query_supplier_data
 
+                price_results = query_supplier_data(brand, article, supplier_list)
+                for i, (_, price_row) in enumerate(price_results.iterrows(), start=0):
+                    if i < 3:
+                        price = price_row["price"]
+                        quantity = price_row["quantity"]
+                        supplier_name = price_row["supplier_name"]
+                        col_offset = i * 3
+                        result_sheet.cell(row=row_num, column=4 + col_offset, value=float(price))
+                        safe_qty = int(quantity) if pd.notna(quantity) else None
+                        result_sheet.cell(row=row_num, column=5 + col_offset, value=safe_qty)
+                        result_sheet.cell(row=row_num, column=6 + col_offset, value=str(supplier_name))
+                for i in range(len(price_results), 3):
+                    col_offset = i * 3
+                    result_sheet.cell(row=row_num, column=4 + col_offset, value=None)
+                    result_sheet.cell(row=row_num, column=5 + col_offset, value=None)
+                    result_sheet.cell(row=row_num, column=6 + col_offset, value=None)
         except Exception as e:
             logger.error(f"Error processing row {row_num}: {e}")
-            # Fill cells with empty values on error
+            error_count += 1
             for i in range(3):
                 col_offset = i * 3
                 result_sheet.cell(row=row_num, column=4 + col_offset, value=None)
@@ -116,21 +155,23 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str) -> t
     logger.info(f"Workbook saved successfully, URL: {file_url}")
 
     progress = "100%"
+    logger.info(f"Summary: Processed {processed_rows} rows, encountered {error_count} errors.")
     return progress, file_url
 
 
-def process_cross_dock_data_from_file(input_file_path: str, supplier_list: str) -> str:
+def process_cross_dock_data_from_file(input_file_path: str, supplier_list: str, use_mv: bool = False) -> str:
     """
     Process cross-dock data from an Excel file and generate a new Excel file.
 
     Args:
         input_file_path: Path to the input Excel file
         supplier_list: Supplier list to query (e.g., 'Группа для проценки ТРЕШКА', 'ОПТ-2')
+        use_mv: Whether to use the MV-based query (default: False)
 
     Returns:
         str: Path to the generated output file
     """
-    logger.info(f"Processing cross-dock data from file {input_file_path}")
+    logger.info(f"Processing cross-dock data from file {input_file_path} (use_mv={use_mv})")
 
     # Read the Excel file
     try:
@@ -194,7 +235,7 @@ def process_cross_dock_data_from_file(input_file_path: str, supplier_list: str) 
 
     # Process the data
     logger.info(f"Starting to process data with supplier list: {supplier_list}")
-    _, file_url = process_cross_dock_data(data, supplier_list)
+    _, file_url = process_cross_dock_data(data, supplier_list, use_mv=use_mv)
     logger.info(f"Data processed successfully, file URL: {file_url}")
 
     # Extract filename from URL (handle both forward and backslashes)
