@@ -50,7 +50,6 @@ def task_record():
     user.delete()
 
 
-@pytest.mark.django_db
 def test_process_file_task_success(sample_excel_file, task_record):
     """Test successful file processing."""
     with mock.patch("cross_dock.services.excel_service.process_cross_dock_data_from_file") as mock_process:
@@ -71,7 +70,6 @@ def test_process_file_task_success(sample_excel_file, task_record):
         assert task_record.result_url is not None
 
 
-@pytest.mark.django_db
 def test_process_file_task_failure(sample_excel_file, task_record):
     """Test file processing failure."""
     with mock.patch("cross_dock.tasks.process_cross_dock_data_from_file") as mock_process:

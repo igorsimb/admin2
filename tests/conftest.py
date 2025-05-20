@@ -1,3 +1,5 @@
+import pytest
+
 """
 Global pytest configuration file.
 
@@ -27,3 +29,9 @@ def pytest_configure(config):
     # If --no-verbose is not specified, add -v to the command line arguments
     if not config.getoption("--no-verbose"):
         config.option.verbose = True
+
+
+@pytest.fixture(autouse=True)
+# using aaa in name to make sure this fixture always runs first due to some alphabetical order in certain cases
+def aaa_db(db):
+    pass

@@ -33,7 +33,6 @@ def excel_file():
     )
 
 
-@pytest.mark.django_db
 def test_process_file_view_with_celery(client, authenticated_user, excel_file):
     """Test that the process_file view creates a task and submits a Celery task."""
     with (
@@ -73,7 +72,6 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
         assert "file_path" in kwargs
 
 
-@pytest.mark.django_db
 def test_process_file_view_db_error(client, authenticated_user, excel_file):
     """Test that the process_file view handles database connection errors."""
     with (
@@ -101,7 +99,6 @@ def test_process_file_view_db_error(client, authenticated_user, excel_file):
         mock_remove.assert_called_once()
 
 
-@pytest.mark.django_db
 def test_task_detail_view(client, authenticated_user):
     """Test the task_detail view."""
     # Create a task
@@ -130,7 +127,6 @@ def test_task_detail_view(client, authenticated_user):
     assert "Success" in content
 
 
-@pytest.mark.django_db
 def test_task_detail_view_add_comment(client, authenticated_user):
     """Test adding a comment to a task."""
     # Create a task
