@@ -1,0 +1,65 @@
+services:
+  django:
+    build: .
+    command: >
+      sh -c "uv run manage.py collectstatic --noinput &&
+             uv run manage.py migrate &&
+             uv run manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - /app/.venv/  # Anonymous volume to prevent overwriting virtualenv
+      - static_volume:/app/static
+      - media_volume:/app/media
+      - sqlite_data:/app/data
+    env_file:
+      - .env.staging
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  celery:
+    build: .
+    command: uv run celery -A core worker -l info
+    volumes:
+      - .:/app
+      - /app/.venv/  # Anonymous volume to prevent overwriting virtualenv
+    env_file:
+      - .env.staging
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6377:6379"
+    volumes:
+      - redis_data_staging:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - static_volume:/app/static:ro
+      - media_volume:/app/media:ro
+    environment:
+      PORT_NGINX: 8071
+      PORT_WEB: 8000
+    ports:
+      - "8071:8071"
+    depends_on:
+      - django
+    command: /bin/sh -c "envsubst '$$PORT_NGINX $$PORT_WEB' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+
+volumes:
+  static_volume:
+  media_volume:
+  redis_data_staging:
+  sqlite_data:  # Add this volume definition

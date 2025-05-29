@@ -14,6 +14,7 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 DJANGO_ENVIRONMENT = env("DJANGO_ENVIRONMENT", default="staging")
 
 ALLOWED_HOSTS = ["*"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8071"]
 
 # Application definition
 
@@ -117,7 +118,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = "/static/"
-STATIC_DIR = [BASE_DIR / "static"]
+STATIC_ROOT = "/app/static/"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -156,8 +157,8 @@ CLICKHOUSE_USER = env("CLICKHOUSE_USER", default="default")
 CLICKHOUSE_PASSWORD = env("CLICKHOUSE_PASSWORD", default="")
 
 # Celery settings
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6378/0")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6378/0")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6377/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6377/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

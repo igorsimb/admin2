@@ -24,7 +24,7 @@ def profile_view(request, username=None):
     return render(request, "account/profile.html", {"profile": profile})
 
 
-@login_required
+# @login_required
 def profile_edit_view(request):
     form = ProfileForm(instance=request.user.profile)
 
@@ -40,12 +40,12 @@ def profile_edit_view(request):
     return render(request, "account/profile_edit.html", context)
 
 
-@login_required
+# @login_required
 def profile_settings_view(request):
     return render(request, "account/profile_settings.html")
 
 
-@login_required
+# @login_required
 def email_change_view(request):
     if request.htmx:
         form = EmailChangeForm(instance=request.user)
@@ -76,7 +76,7 @@ def email_change_view(request):
     return redirect("index")
 
 
-@login_required
+# @login_required
 def email_verify(request):
     """
     Send confirmation email to the user
