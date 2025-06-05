@@ -8,6 +8,7 @@ from .base import *  # noqa
 
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365  # 1 year
 # SECURE_SSL_REDIRECT = True

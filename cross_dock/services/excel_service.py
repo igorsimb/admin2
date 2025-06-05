@@ -86,7 +86,8 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
         try:
             brand = item["Бренд"]
             article = item["Артикул"]
-            logger.info(f"Processing row {row_num - 1}/{total_rows}: {brand}, {article}")
+            if row_num % 100 == 0:
+                logger.info(f"Processing row {row_num - 1}/{total_rows}: {brand}, {article}")
         except KeyError as e:
             logger.error(f"KeyError in row {row_num - 1}: {e}. Item keys: {item.keys()}")
             error_count += 1
