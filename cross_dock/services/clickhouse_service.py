@@ -223,26 +223,32 @@ def query_supplier_data_mv(
         logger.warning("[MV-BATCH] No (brand, sku) pairs provided.")
         return empty_df
 
-    # Prepare the IN clause parameter for ClickHouse
-    # ClickHouse expects a list of tuples for (brand_lower, sku_lower)
     try:
         query = """
-        WITH recent_per_supplier AS (
-            SELECT
-                price,
-                quantity,
-                supplier_name,
-                brand_lower,
-                sku_lower,
+        -- First get the list of valid supplier names for this supplier_list
+        WITH valid_supplier_names AS (
+            SELECT DISTINCT name 
+            FROM sup_stat.sup_list
+            WHERE has(lists, %(supplier_list)s)
+        ),
+        -- Then get the most recent prices from the MV
+        recent_prices AS (
+            SELECT 
+                m.price,
+                m.quantity,
+                m.supplier_name,
+                m.brand_lower,
+                m.sku_lower,
                 ROW_NUMBER() OVER (
-                    PARTITION BY brand_lower, sku_lower, supplier_name
-                    ORDER BY update_date DESC
+                    PARTITION BY m.brand_lower, m.sku_lower, m.supplier_name
+                    ORDER BY m.update_date DESC
                 ) AS rn
-            FROM sup_stat.mv_cross_dock
-            WHERE supplier_list = %(supplier_list)s
-              AND (brand_lower, sku_lower) IN %(brand_sku_pairs)s
-              AND update_date >= now() - interval %(days_lookback)s day
+            FROM sup_stat.mv_cross_dock m
+            INNER JOIN valid_supplier_names v ON m.supplier_name = v.name
+            WHERE (m.brand_lower, m.sku_lower) IN %(brand_sku_pairs)s
+              AND m.update_date >= now() - interval %(days_lookback)s day
         )
+        -- Get top 3 suppliers per (brand, sku) by price
         SELECT
             price,
             quantity,
@@ -258,13 +264,13 @@ def query_supplier_data_mv(
                 sku_lower,
                 ROW_NUMBER() OVER (
                     PARTITION BY brand_lower, sku_lower
-                    ORDER BY price ASC
+                    ORDER BY price ASC, supplier_name
                 ) AS rank
-            FROM recent_per_supplier
+            FROM recent_prices
             WHERE rn = 1
-        )
+        ) 
         WHERE rank <= 3
-        ORDER BY brand_lower, sku_lower, price ASC;
+        ORDER BY brand_lower, sku_lower, price ASC, supplier_name;
         """
 
         query_params = {

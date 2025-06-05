@@ -10,7 +10,7 @@ from django.conf import settings
 def environment_settings(request):
     """
     Add environment-related settings to the template context.
-    
+
     This makes these variables available in all templates.
     """
     return {
