@@ -1,3 +1,4 @@
+# ruff: noqa: F405
 """
 Staging settings for project config.
 

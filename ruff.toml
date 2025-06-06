@@ -26,6 +26,7 @@ exclude = [
     "node_modules",
     "site-packages",
     ".venv",
+    "**/migrations/**",
 ]
 
 # Same as your current setting
@@ -52,9 +53,12 @@ select = [
 
 # Common rules to ignore
 ignore = [
-    "E203",  # Whitespace before ':' (conflicts with Black)
-    "E501",  # Line too long (handled by formatter)
-    "RUF012",  # Mutable class attributes should be annotated with `typing.ClassVar`
+    "E203",     # Whitespace before ':' (conflicts with Black)
+    "E501",     # Line too long (handled by formatter)
+    "RUF012",   # Mutable class attributes should be annotated with `typing.ClassVar`
+    "RUF005",   # Unnecessary use of f-string when no interpolation is present
+    "SIM105",   # Use `contextlib.suppress(...)` instead of try/except/pass
+    "SIM117",   # Use a single `with` statement instead of multiple nested ones
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
