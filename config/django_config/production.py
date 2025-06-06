@@ -1,3 +1,4 @@
+# ruff: noqa: F405
 """
 Production settings for project config.
 

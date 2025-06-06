@@ -2,7 +2,7 @@ from allauth.account.models import EmailAddress
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from .models import User, Profile
+from .models import Profile, User
 
 
 @receiver(post_save, sender=User)
@@ -18,7 +18,7 @@ def create_profile(sender, instance, created, **kwargs):
                 email_address.email = user.email
                 email_address.verified = False
                 email_address.save()
-        except:
+        except:  # noqa: E722
             # if allauth email_address doesn't exist, create one
             EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=False)
 

@@ -14,6 +14,14 @@ uv run manage.py migrate
 uv run manage.py createsuperuser
 ```
 
+### Pre-commit
+```bash
+pre-commit install
+```
+```bash
+pre-commit run --all-files
+```
+
 ### Создание алиаса в PowerShell
 
 Добавьте в ваш PowerShell профиль ($profile):
