@@ -7,13 +7,12 @@ https://github.com/HackSoftware/Django-Styleguide
 
 from config.env import BASE_DIR, env
 
-env.read_env(BASE_DIR / ".env")
-
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 DJANGO_ENVIRONMENT = env("DJANGO_ENVIRONMENT", default="staging")
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=["https://127.0.0.1", "https://localhost"])
 
 # Application definition
 
@@ -31,8 +30,6 @@ INSTALLED_APPS = [
     "accounts",
     # Third-party
     "django_celery_results",
-    "django_extensions",
-    "debug_toolbar",
     "django_htmx",
     "template_partials",
     "allauth",
@@ -46,7 +43,6 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
@@ -97,7 +93,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+# DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
 
 # Internationalization

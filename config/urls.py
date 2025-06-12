@@ -17,8 +17,6 @@ urlpatterns = [
     # Local apps
     path("", include("core.urls")),
     path("cross_dock/", include("cross_dock.urls")),
-    # Third-party apps
-    path("__debug__/", include("debug_toolbar.urls")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

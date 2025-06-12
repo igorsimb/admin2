@@ -1,21 +1,72 @@
-version: "3.8"
-
 services:
+  db:
+    image: postgres:17
+    ports:
+      - "5434:5432"
+    volumes:
+      - admin2_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env.prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  admin2-web:
+    build: .
+    container_name: admin2-docker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - admin2_static_data:/app/staticfiles
+      - admin2_media_data:/app/media
+    env_file:
+      - .env.prod
+
+  celery:
+    build: .
+    command: celery -A config.third_party_config.celery worker -l info
+    env_file:
+      - .env.prod
+    volumes:
+      - admin2_static_data:/app/staticfiles
+      - admin2_media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   redis:
-    image: redis:7-alpine
-    container_name: admin2_redis
+    image: redis:alpine
     ports:
       - "6378:6379"
     volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    restart: unless-stopped
+      - admin2_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 3
 
+
+  frontend-proxy:
+    image: nginx:latest
+    ports:
+      - "8061:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - admin2_static_data:/static:ro
+      - admin2_media_data:/media:ro
+    depends_on:
+      - admin2-web
 volumes:
-  redis_data:
-    name: admin2_redis_data
+  admin2_postgres_data:
+  admin2_static_data:
+  admin2_media_data:
+  admin2_redis_data:
