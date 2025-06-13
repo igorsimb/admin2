@@ -3,22 +3,36 @@
 {% block title %}Cross Dock{% endblock %}
 {% block content %}
 
-<div class="max-w-4xl mx-auto px-8 py-12">
+<div class="max-w-4xl mx-auto p-8">
+    <!-- Breadcrumbs -->
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Home</a></li>
+            <li class="text-gray-500">Create task</li>
+        </ul>
+    </div>
+    
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Cross Dock Query</h1>
-        <a href="{% url 'cross_dock:task_list' %}" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <h1 class="text-2xl font-bold">Cross Dock Create Task</h1>
+        <a href="{% url 'cross_dock:task_list' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+</svg>
+
             View Tasks
         </a>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="card bg-base-100 shadow-xl p-6">
         <form method="post" enctype="multipart/form-data" action="{% url 'cross_dock:process_file' %}">
             {% csrf_token %}
 
             <!-- Supplier List Selection -->
-            <div class="mb-6">
-                <label for="supplier_list" class="block text-sm font-medium text-gray-700 mb-2">Supplier List</label>
-                <select id="supplier_list" name="supplier_list" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            <div class="form-control w-full max-w-full mb-6">
+                <label for="supplier_list" class="label">
+                    <span class="label-text">Supplier Group</span>
+                </label>
+                <select id="supplier_list" name="supplier_list" class="select select-bordered w-full">
                     {% for list in supplier_lists %}
                         <option value="{{ list }}">{{ list }}</option>
                     {% endfor %}
@@ -26,10 +40,12 @@
             </div>
 
             <!-- File Upload -->
-            <div class="mb-6">
-                <label for="file_upload" class="block text-sm font-medium text-gray-700 mb-2">Upload Excel File</label>
+            <div class="form-control w-full max-w-full mb-6">
+                <label class="label">
+                    <span class="label-text">Upload Excel File</span>
+                </label>
                 <div class="flex items-center justify-center w-full">
-                    <label for="file_upload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label for="file_upload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-base-200 hover:bg-base-300 transition-colors">
                         <div class="flex flex-col items-center justify-center pt-5 pb-6">
                             <svg class="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
@@ -40,7 +56,48 @@
                         <input id="file_upload" name="file_upload" type="file" class="hidden" accept=".xlsx, .xls" required />
                     </label>
                 </div>
-                <div id="file-name" class="mt-2 text-sm text-gray-500"></div>
+                <!-- File name display with better visibility -->
+                <div id="file-name" class="mt-3">
+                    <div id="file-name-content" class="hidden">
+                        <div class="flex items-center p-3 bg-success/10 rounded-lg border border-success/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-success font-medium" id="file-name-text"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- File format hint with tooltip -->
+                <div class="mt-3 text-sm text-gray-600">
+                    Ожидаемый формат файла: 2 колонки с заголовками
+                    <div class="tooltip tooltip-top tooltip-info">
+                        <div class="tooltip-content">
+                            <div>
+                                <table class="table table-compact w-full text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Бренд</th>
+                                            <th>Артикул</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>HYUNDAI/KIA/MOBIS</td>
+                                            <td>223212E000</td>
+                                        </tr>
+                                        <tr>
+                                            <td>NISSAN</td>
+                                            <td>01121s602e</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <span class="link link-hover link-primary">"Бренд" и "Артикул"</span>
+                    </div>
+                </div>
+                
             </div>
 
             <!-- Hidden input for use_mv -->
@@ -48,18 +105,11 @@
 
             <!-- Supplier Query Buttons (Step 2: backend integration) -->
             <div class="flex flex-col md:flex-row gap-4 mb-6">
-                <button type="button" id="legacy-query-btn" class="inline-flex justify-center py-2 px-4 border border-gray-400 shadow-sm text-sm font-medium rounded-md text-gray-800 !bg-white !hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <button type="button" id="legacy-query-btn" class="btn btn-outline">
                     Legacy Supplier Query
                 </button>
-                <button type="button" id="mv-query-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white !bg-green-600 !hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <button type="button" id="mv-query-btn" class="btn btn-success text-white">
                     Fast Supplier Query (MV)
-                </button>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="flex justify-end">
-                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Submit
                 </button>
             </div>
         </form>
@@ -76,8 +126,17 @@
 
     // Display file name when selected via input
     fileInput.addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name || 'No file selected';
-        fileNameDisplay.textContent = fileName;
+        const file = e.target.files[0];
+        if (file) {
+            const fileName = file.name;
+            const fileNameText = document.getElementById('file-name-text');
+            const fileNameContent = document.getElementById('file-name-content');
+            
+            fileNameText.textContent = fileName;
+            fileNameContent.classList.remove('hidden');
+        } else {
+            document.getElementById('file-name-content').classList.add('hidden');
+        }
     });
 
     // Prevent default drag behaviors
@@ -100,13 +159,13 @@
     });
 
     function highlight() {
-        dropArea.classList.add('bg-gray-200');
-        dropArea.classList.remove('bg-gray-50');
+        dropArea.classList.add('bg-base-300');
+        dropArea.classList.remove('bg-base-200');
     }
 
     function unhighlight() {
-        dropArea.classList.remove('bg-gray-200');
-        dropArea.classList.add('bg-gray-50');
+        dropArea.classList.remove('bg-base-300');
+        dropArea.classList.add('bg-base-200');
     }
 
     // Handle dropped files
@@ -127,7 +186,15 @@
 
             // Assign the DataTransfer's files property to the file input
             fileInput.files = dataTransfer.files;
-            fileNameDisplay.textContent = files[0].name;
+            
+            // Update the file name display
+            const fileNameText = document.getElementById('file-name-text');
+            const fileNameContent = document.getElementById('file-name-content');
+            fileNameText.textContent = files[0].name;
+            fileNameContent.classList.remove('hidden');
+            
+            // Trigger change event to ensure consistency
+            fileInput.dispatchEvent(new Event('change'));
         }
     }
 

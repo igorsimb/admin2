@@ -3,18 +3,27 @@
 {% block content %}
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<!-- Breadcrumbs -->
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Home</a></li>
+            <li><a href="{% url 'cross_dock:task_list' %}" class="text-primary">Task List</a></li>
+            <li class="text-gray-500">Task Info</li>
+        </ul>
+    </div>
+
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center">
-            <a href="{% url 'cross_dock:task_list' %}" class="mr-4 text-indigo-600 hover:text-indigo-900">
+            <a href="{% url 'cross_dock:task_list' %}" class="btn btn-ghost btn-circle btn-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
                 </svg>
             </a>
-            <h1 class="text-2xl font-bold">Task Details</h1>
+            <h1 class="text-2xl font-bold">Task Info</h1>
         </div>
         {% if task.status == "SUCCESS" and task.result_url %}
-        <a href="{{ task.result_url }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-            <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="{{ task.result_url }}" class="btn btn-success gap-2">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Download Result
@@ -22,183 +31,189 @@
         {% endif %}
     </div>
 
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-        <div class="px-4 py-5 sm:px-6 bg-gray-50">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Task Information</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Details about the cross-dock task.</p>
-        </div>
-        <div class="border-t border-gray-200">
-            <dl>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Task ID</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 flex items-center">
-                        {{ task.id }}
-                        <button
-                            class="ml-2 text-gray-400 hover:text-gray-600"
-                            style="cursor:copy"
-                            title="Copy ID"
-                            x-data="{ copied: false }"
-                            x-on:click="
-                                navigator.clipboard.writeText('{{ task.id }}');
-                                copied = true;
-                                setTimeout(() => copied = false, 1500);"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <span
-                                x-show="copied"
-                                x-cloak
-                                x-transition
-                                class="absolute ml-2 text-xs text-green-600 bg-white border border-green-300 px-2 pb-0.5 rounded shadow"
-                            >
-                                Скопировано!
-                            </span>
-                        </button>
-                    </dd>
-                </div>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Status</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                        {% if task.status == "SUCCESS" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                                Success
-                            </span>
-                        {% elif task.status == "RUNNING" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                <svg class="h-3 w-3 mr-1 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Running
-                            </span>
-                        {% elif task.status == "PENDING" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Pending
-                            </span>
-                        {% else %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Failed
-                            </span>
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body p-0">
+            <div class="px-6 py-5 bg-base-200">
+                <h3 class="card-title text-lg">Task Information</h3>
+                <p class="text-sm opacity-70">Details about the cross-dock task.</p>
+            </div>
+            <div class="divider m-0"></div>
+            <div class="overflow-x-auto">
+                <table class="table
+                    [&>tbody>tr>th]:bg-base-100 [&>tbody>tr>th]:font-medium [&>tbody>tr>th]:text-opacity-60 [&>tbody>tr>th]:w-1/3
+                    [&>tbody>tr>td]:bg-base-100 [&>tbody>tr>td]:whitespace-nowrap [&>tbody>tr>td]:overflow-hidden [&>tbody>tr>td]:text-ellipsis">
+                    <tbody>
+                        <tr>
+                            <th>Task ID</th>
+                            <td class="flex items-center gap-2">
+                                <span class="truncate">{{ task.id }}</span>
+                                <div class="relative inline-flex items-center">
+                                    <button
+                                        class="btn btn-ghost btn-xs btn-circle"
+                                        style="cursor:copy"
+                                        title="Copy ID"
+                                        x-data="{ copied: false }"
+                                        x-on:click="
+                                            navigator.clipboard.writeText('{{ task.id }}');
+                                            copied = true;
+                                            setTimeout(() => copied = false, 1500);"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span
+                                            x-show="copied"
+                                            x-cloak
+                                            x-transition
+                                            class="absolute left-full ml-2 whitespace-nowrap badge badge-soft badge-success badge-sm"
+                                        >
+                                            <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                                <g fill="currentColor" stroke-linejoin="miter" stroke-linecap="butt">
+                                                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></circle>
+                                                    <polyline points="7 13 10 16 17 8" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></polyline>
+                                                </g>
+                                            </svg>
+                                            <span class="ml-1">Скопировано!</span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>
+                                {% if task.status == "SUCCESS" %}
+                                    <span class="badge badge-success gap-1">
+                                        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Success
+                                    </span>
+                                {% elif task.status == "RUNNING" %}
+                                    <span class="badge badge-info gap-1">
+                                        <span class="loading loading-spinner loading-xs"></span>
+                                        Running
+                                    </span>
+                                {% elif task.status == "PENDING" %}
+                                    <span class="badge badge-warning gap-1">
+                                        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Pending
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-error gap-1">
+                                        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        Failed
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>File Name</th>
+                            <td class="truncate max-w-xs" title="{{ task.filename }}">{{ task.filename }}</td>
+                        </tr>
+                        <tr>
+                            <th>Supplier Group</th>
+                            <td class="truncate max-w-xs" title="{{ task.supplier_group }}">{{ task.supplier_group }}</td>
+                        </tr>
+                        <tr>
+                            <th>Created By</th>
+                            <td>{{ task.user.profile.display_name|default:"Anonymous" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Created At</th>
+                            <td>{{ task.created_at|date:"d.m.Y H:i:s" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Execution Time</th>
+                            <td>{{ task.execution_time }}</td>
+                        </tr>
+                        {% if task.status == "FAILURE" and task.error_message %}
+                        <tr>
+                            <th class="text-error">Error Message</th>
+                            <td>
+                                <div class="bg-error bg-opacity-10 p-3 rounded-box overflow-auto max-h-40">
+                                    <pre class="text-xs font-mono">{{ task.error_message }}</pre>
+                                </div>
+                            </td>
+                        </tr>
                         {% endif %}
-                    </dd>
-                </div>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">File Name</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ task.filename }}</dd>
-                </div>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Supplier Group</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ task.supplier_group }}</dd>
-                </div>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Created By</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ task.user.profile.display_name|default:"Anonymous" }}</dd>
-                </div>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Created At</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ task.created_at|date:"d.m.Y H:i:s" }}</dd>
-                </div>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Execution Time</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ task.execution_time }}</dd>
-                </div>
-                {% if task.status == "FAILURE" and task.error_message %}
-                <div class="bg-red-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-red-500">Error Message</dt>
-                    <dd class="mt-1 text-sm text-red-900 sm:mt-0 sm:col-span-2">
-                        <div class="bg-red-100 p-3 rounded-md overflow-auto max-h-40">
-                            <pre class="text-xs">{{ task.error_message }}</pre>
-                        </div>
-                    </dd>
-                </div>
-                {% endif %}
-            </dl>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Comments Section -->
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div class="px-4 py-5 sm:px-6 bg-gray-50">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Comments</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Add notes or comments about this task.</p>
-        </div>
-        
-        <!-- Comment Form -->
-        {% if user.is_authenticated %}
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <form method="post" action="{% url 'cross_dock:task_detail' task_id=task.id %}">
-                {% csrf_token %}
-                <div>
-                    <label for="comment_text" class="block text-sm font-medium text-gray-700">Add a comment</label>
-                    <div class="mt-1">
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body p-0">
+            <!-- Comments List -->
+            <div class="p-6">
+                {% if comments %}
+                    <ul class="space-y-6">
+                        {% for comment in comments %}
+                        <li class="chat chat-start">
+                            <div class="chat-image avatar">
+                                <div class="w-10 h-10 rounded-full">
+                                    {% if comment.user %}
+                                        <img src="{{ comment.user.profile.avatar }}" alt="{{ comment.user.profile.name }}" />
+                                    {% else %}
+                                        <div class="bg-gray-300 text-gray-600 flex items-center justify-center h-full">
+                                            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
+                                            </svg>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="chat-header">
+                                {{ comment.user.profile.name|default:"Anonymous" }}
+                                <time class="text-xs opacity-50 ml-2">{{ comment.created_at|date:"d.m.Y H:i" }}</time>
+                            </div>
+                            <div class="chat-bubble bg-base-200 text-base-content">
+                                {{ comment.text|linebreaksbr }}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center py-8 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <p>No comments yet. Be the first to comment!</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Comment Form -->
+            {% if user.is_authenticated %}
+            <div class="border-t border-base-300 p-6 bg-base-200">
+                <form method="post" action="{% url 'cross_dock:task_detail' task_id=task.id %}" class="space-y-4">
+                    {% csrf_token %}
+                    <div class="form-control">
                         <textarea 
                             id="comment_text" 
                             name="comment_text" 
                             rows="3" 
-                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-md"
-                            placeholder="Add your comment here..."
+                            class="textarea textarea-bordered w-full"
+                            placeholder="Type your comment here..."
                             required
                         ></textarea>
                     </div>
-                </div>
-                <div class="mt-2 flex justify-end">
-                    <button 
-                        type="submit" 
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                        Add Comment
-                    </button>
-                </div>
-            </form>
-        </div>
-        {% endif %}
-        
-        <!-- Comments List -->
-        <div class="border-t border-gray-200">
-            {% if comments %}
-                <ul class="divide-y divide-gray-200">
-                    {% for comment in comments %}
-                    <li class="px-4 py-4 sm:px-6">
-                        <div class="flex space-x-3">
-                            <div class="flex-shrink-0">
-                                {% if comment.user %}
-                                <img class="h-10 w-10 rounded-full" src="{{ comment.user.profile.avatar }}" alt="{{ comment.user.profile.name }}">
-                                {% else %}
-                                <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                    <svg class="h-6 w-6 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
-                                    </svg>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-gray-900">
-                                    {{ comment.user.profile.name|default:"Anonymous" }}
-                                </p>
-                                <p class="text-sm text-gray-500">
-                                    {{ comment.created_at|date:"d.m.Y H:i" }}
-                                </p>
-                                <div class="mt-2 text-sm text-gray-700">
-                                    <p>{{ comment.text|linebreaksbr }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <div class="px-4 py-5 sm:px-6 text-center text-gray-500">
-                    No comments yet.
-                </div>
+                    <div class="flex justify-start">
+                        <button type="submit" class="btn btn-primary gap-2">
+                            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Comment
+                        </button>
+                    </div>
+                </form>
+            </div>
             {% endif %}
         </div>
     </div>
