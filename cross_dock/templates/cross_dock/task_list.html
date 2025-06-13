@@ -3,35 +3,49 @@
 {% block content %}
 
 <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<!-- Breadcrumbs -->
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Home</a></li>
+            <li class="text-gray-500">Task List</li>
+        </ul>
+    </div>
+
+
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Cross Dock Tasks</h1>
-        <a href="{% url 'cross_dock:index' %}" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <a href="{% url 'cross_dock:create_task' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
             New Task
         </a>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[150px]">Файл</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[150px]">Группа</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Пользователь</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Прогресс</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Результат</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Время</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
-                    <th scope="col" class="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-8">⋮</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for task in tasks %}
-                <tr class="hover:bg-gray-100">
-                   <td
-                        class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 relative"
+    <div class="card bg-base-100 shadow-md overflow-x-auto">
+        <div class="card-body p-4">
+            <div class="overflow-x-auto">
+                <table class="table table-zebra table-pin-rows">
+                    <thead>
+                        <tr class="[&>th]:bg-base-200 [&>th]:text-xs [&>th]:font-medium [&>th]:uppercase [&>th]:tracking-wider [&>th]:py-2 [&>th]:px-3">
+                            <th>ID</th>
+                            <th class="max-w-[150px]">Файл</th>
+                            <th class="max-w-[150px]">Группа</th>
+                            <th>Пользователь</th>
+                            <th>Статус</th>
+                            <th>Прогресс</th>
+                            <th>Результат</th>
+                            <th>Дата</th>
+                            <th>Время</th>
+                            <th>Действия</th>
+                            <th class="w-8 text-center">⋮</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr class="hover:bg-base-300">
+                   <td 
+                        class="whitespace-nowrap font-medium relative"
                         style="cursor:copy"
                         title="{{ task.id }}"
                         x-data="{ copied: false }"
@@ -45,62 +59,63 @@
                             x-show="copied"
                             x-cloak
                             x-transition
-                            class="absolute top-1 ml-2 text-xs text-green-600 bg-white border border-green-300 px-2 pb-0.5 rounded shadow"
+                            class="absolute top-1 ml-2 badge badge-soft badge-success badge-sm"
                         >
+                            <svg class="size-[1em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="currentColor" stroke-linejoin="miter" stroke-linecap="butt"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></circle><polyline points="7 13 10 16 17 8" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></polyline></g></svg>
                             Скопировано!
                         </span>
                     </td>
-                    <td class="px-3 py-3 text-sm text-gray-500 break-words max-w-[150px]">{{ task.filename }}</td>
-                    <td class="px-3 py-3 text-sm text-gray-500 break-words max-w-[150px]">{{ task.supplier_group }}</td>
-                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.user.profile.name }}</td>
-                    <td class="px-3 py-3 text-sm text-gray-500">
+                    <td class="break-words max-w-[150px]">{{ task.filename }}</td>
+                    <td class="break-words max-w-[150px]">{{ task.supplier_group }}</td>
+                    <td>{{ task.user.profile.name }}</td>
+                    <td>
                         {% if task.status == "SUCCESS" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <span class="badge badge-success gap-1">
+                                <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                 </svg>
                                 Success
                             </span>
                         {% elif task.status == "RUNNING" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                <svg class="h-3 w-3 mr-1 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <span class="badge badge-info gap-1">
+                                <svg class="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                                 Running
                             </span>
                         {% elif task.status == "PENDING" %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <span class="badge badge-warning gap-1">
+                                <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Pending
                             </span>
                         {% else %}
-                            <span class="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                <svg class="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <span class="badge badge-error gap-1">
+                                <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                                 Failed
                             </span>
                         {% endif %}
                     </td>
-                    <td class="px-3 py-3 text-sm text-gray-500">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <td>
+                        <div class="w-full bg-base-200 rounded-full h-2.5">
                             {% if task.status == "SUCCESS" %}
-                                <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
+                                <div class="bg-success h-2.5 rounded-full" style="width: 100%"></div>
                             {% elif task.status == "RUNNING" %}
-                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 50%"></div>
+                                <div class="bg-info h-2.5 rounded-full" style="width: 50%"></div>
                             {% elif task.status == "PENDING" %}
-                                <div class="bg-yellow-600 h-2.5 rounded-full" style="width: 10%"></div>
+                                <div class="bg-warning h-2.5 rounded-full" style="width: 10%"></div>
                             {% else %}
-                                <div class="bg-red-600 h-2.5 rounded-full" style="width: 100%"></div>
+                                <div class="bg-error h-2.5 rounded-full" style="width: 100%"></div>
                             {% endif %}
                         </div>
                     </td>
-                    <td class="px-3 py-3 text-sm text-gray-500">
+                    <td>
                         {% if task.status == "SUCCESS" and task.result_url %}
-                            <a href="{{ task.result_url }}" class="inline-flex items-center px-3 py-1.5 border border-green-600 text-xs font-medium rounded-md shadow-sm text-green-600 bg-transparent hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
-                                <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <a href="{{ task.result_url }}" class="btn btn-outline btn-success btn-sm gap-1">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
                                 Download
@@ -109,65 +124,79 @@
                             <span class="text-gray-400">-</span>
                         {% endif %}
                     </td>
-                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.created_at|date:"d.m.Y H:i" }}</td>
-                    <td class="px-3 py-3 text-sm text-gray-500">{{ task.execution_time }}</td>
-                    <td class="px-3 py-3 text-sm text-gray-500">
-                        <select
-                            class="border border-gray-300 rounded-md text-sm text-gray-700 bg-white px-2 py-1 w-32"
-                            onchange="handleTaskAction(this, '{{ task.id }}')"
-                        >
-                            <option value="" selected disabled>Действия</option>
-                            <option value="delete" class="text-red-700">Удалить</option>
-                            {% if task.status == "RUNNING" %}
-                                <option value="stop" class="text-yellow-700">Остановить</option>
-                            {% endif %}
-                            {% if task.status == "FAILURE" %}
-                                <option value="restart" class="text-green-700">Перезапустить</option>
-                            {% endif %}
-                        </select>
+                    <td>{{ task.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ task.execution_time }}</td>
+                    <td>
+                        <div class="dropdown dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-sm btn-ghost">
+                                <span class="text-sm">Действия</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-36">
+                                <li><a onclick="handleTaskAction('delete', '{{ task.id }}')" class="text-error">Удалить</a></li>
+                                {% if task.status == "RUNNING" %}
+                                    <li><a onclick="handleTaskAction('stop', '{{ task.id }}')" class="text-warning">Остановить</a></li>
+                                {% endif %}
+                                {% if task.status == "FAILURE" %}
+                                    <li><a onclick="handleTaskAction('restart', '{{ task.id }}')" class="text-success">Перезапустить</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
                     </td>
-                    <td class="px-1 py-3 text-center">
+                    <td class="text-center">
                         {% if task.status == "SUCCESS" %}
-                            <a href="{% url 'cross_dock:task_detail' task.id %}" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600" title="Просмотр деталей">
+                            <a href="{% url 'cross_dock:task_detail' task.id %}" class="btn btn-ghost btn-circle btn-sm" title="Просмотр деталей">
                                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Zm3.75 11.625a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                                 </svg>
                             </a>
                         {% else %}
-                            <span class="text-gray-300">-</span>
+                            <span class="opacity-30">-</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="px-3 py-3 text-center text-sm text-gray-500">No tasks found</td>
+                    <td colspan="11" class="text-center py-4">
+                        <div class="text-base-content/50">No tasks found</div>
+                    </td>
                 </tr>
                 {% endfor %}
-            </tbody>
-        </table>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         {% if is_paginated %}
-        <div class="flex justify-between items-center mt-4 px-6 py-3">
-            <span class="text-sm text-gray-700">
+        <div class="flex flex-col md:flex-row justify-between items-center mt-4 px-6 py-3 gap-4">
+            <div class="text-sm">
                 Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} tasks
-            </span>
-            <div class="flex space-x-1">
+            </div>
+            <div class="join">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">First</a>
-                    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Previous</a>
+                    <a href="?page=1" class="join-item btn btn-sm">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">First</button>
+                    <button class="join-item btn btn-sm btn-disabled">«</button>
                 {% endif %}
 
                 {% for num in paginator.page_range %}
                     {% if page_obj.number == num %}
-                        <span class="px-3 py-1 bg-indigo-600 text-white rounded-md">{{ num }}</span>
+                        <a href="?page={{ num }}" class="join-item btn btn-sm btn-active">{{ num }}</a>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <a href="?page={{ num }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">{{ num }}</a>
+                        <a href="?page={{ num }}" class="join-item btn btn-sm">{{ num }}</a>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Next</a>
-                    <a href="?page={{ paginator.num_pages }}" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md">Last</a>
+                    <a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>
+                    <a href="?page={{ paginator.num_pages }}" class="join-item btn btn-sm">Last</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">»</button>
+                    <button class="join-item btn btn-sm btn-disabled">Last</button>
                 {% endif %}
             </div>
         </div>
@@ -176,13 +205,8 @@
 </div>
 
 <script>
-    function handleTaskAction(selectElement, taskId) {
-        const action = selectElement.value;
-
-        if (!action) return;
-
-        // Reset the select element
-        selectElement.selectedIndex = 0;
+    function handleTaskAction(action, taskId) {
+        if (!action || !taskId) return;
 
         // Confirm the action
         let confirmMessage = '';

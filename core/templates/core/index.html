@@ -1,16 +1,65 @@
 {% extends "core/layouts/blank.html" %}
-{% block title %}Main Page{% endblock %}
+{% block title %}Dashboard{% endblock %}
+
 {% block content %}
+<div class="container mx-auto px-4 py-8">
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="text-gray-600 mt-2">Manage your operations and access different sections</p>
+    </header>
 
-<div class="max-w-4xl mx-auto px-8 py-24">
-    <h1>Main Page</h1>
-    <p>Environment: {{ environment }}</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Cross-dock Section -->
+        <div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 rounded-lg bg-primary/10 text-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <h2 class="card-title text-lg">Cross-dock</h2>
+                </div>
+                <div class="divider my-2"></div>
+                <div class="space-y-2">
+                    <a href="{% url 'cross_dock:create_task' %}" class="btn btn-ghost btn-sm justify-start w-full text-left">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                        Create Task
+                    </a>
+                    <a href="{% url 'cross_dock:task_list' %}" class="btn btn-ghost btn-sm justify-start w-full text-left">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                        Task List
+                    </a>
+                </div>
+            </div>
+        </div>
 
-    <div class="flex flex-col space-y-2">
-        <a href="{% url 'cross_dock:index' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock</a>
-        <a href="{% url 'cross_dock:task_list' %}" class="text-blue-600 hover:text-blue-800 underline font-medium">Cross-dock Tasks</a>
+        <!-- Coming Soon Section -->
+        <div class="card bg-base-100 shadow-md border-2 border-dashed border-base-300">
+            <div class="card-body items-center text-center">
+                <div class="p-3 rounded-full bg-base-200 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                </div>
+                <h3 class="font-medium text-gray-500">Some cool feature</h3>
+                <p class="text-sm text-gray-400 mt-1">Coming soon</p>
+            </div>
+        </div>
     </div>
-
 </div>
 
-{% endblock content %}
+<style>
+    .card {
+        border-radius: 0.5rem;
+        transition: all 0.2s ease-in-out;
+    }
+    .card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}

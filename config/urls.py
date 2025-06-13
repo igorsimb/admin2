@@ -16,7 +16,7 @@ urlpatterns = [
     path("@<username>/", profile_view, name="profile"),
     # Local apps
     path("", include("core.urls")),
-    path("cross_dock/", include("cross_dock.urls")),
+    path("cross-dock/", include("cross_dock.urls")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
