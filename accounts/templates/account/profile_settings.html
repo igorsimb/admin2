@@ -1,58 +1,85 @@
 {% extends 'core/layouts/box.html' %}
 {% block title %}Profile Settings{% endblock %}
+
 {% block content %}
+<div class="w-full">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-base-content">Account Settings</h1>
+        <p class="text-base-content/70 mt-2">Manage your account preferences and security settings</p>
+    </div>
 
-    <h1 class="mb-8">Account Settings</h1>
+    <!-- Email Section -->
+    <div class="card bg-base-100 shadow-sm mb-6">
+        <div class="card-body p-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="font-semibold text-lg text-base-content">Email Address</h2>
+                    <div id="email-address" class="mt-1">
+                        {% if user.email %}
+                            <span class="text-base-content">{{ user.email }}</span>
+                            <div class="flex items-center mt-1">
+                                {% if user.emailaddress_set.first.verified %}
+                                    <span class="badge badge-success gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                        Verified
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-warning gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                        Not verified
+                                    </span>
+                                {% endif %}
+                                {% if not user.emailaddress_set.first.verified %}
+                                    <a href="{% url 'email_verify' %}" class="ml-3 text-sm font-medium text-primary hover:text-primary/80">
+                                        Verify now
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="text-base-content/70">No email address</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <button id="email-edit"
+                        class="btn btn-ghost btn-sm"
+                        hx-get="{% url 'email_change' %}"
+                        hx-target="#email-address"
+                        hx-swap="innerHTML">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Change
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <table class="w-full text-sm text-left text-gray-500">
-        <tbody>
-        <tr>
-            <th scope="row" class="pt-4 pb-1 text-base font-bold text-gray-900">
-                Email address
-            </th>
-            <td id="email-address" class="pt-4 pb-1 px-6">
-                {% if user.email %}{{ user.email }}{% else %}No Email{% endif %}
-            </td>
-            <td class="pt-4 pb-1 px-6">
-                <a id="email-edit" class="cursor-pointer font-medium text-blue-600 hover:underline"
-                   hx-get="{% url 'email_change' %}"
-                   hx-target="#email-address"
-                   hx-swap="innerHTML">
-                    Edit
+    <!-- Danger Zone -->
+    <div class="card border border-error/20 bg-error/5 shadow-sm">
+        <div class="card-body p-6">
+            <h2 class="card-title text-error">Danger Zone</h2>
+            <p class="text-error/70 text-sm mt-1">These actions are irreversible. Please be certain.</p>
+            
+            <div class="divider my-2"></div>
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="font-medium text-base-content">Delete Account</h3>
+                    <p class="text-sm text-base-content/70">Once deleted, your account cannot be recovered.</p>
+                </div>
+                <a href="{% url 'profile_delete' %}" class="btn btn-error btn-outline btn-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Account
                 </a>
-            </td>
-        </tr>
-        <tr class="border-b">
-            <th scope="row" class="pb-4 font-medium text-gray-900">
-            </th>
-            <td class="px-6 pb-4">
-                {% if user.emailaddress_set.first.verified %}
-                    <span class="text-green-500">Verified</span>{% else %}
-                    <span class="text-amber-500">Not verified</span>
-                {% endif %}
-            </td>
-            <td class="px-6 pb-4">
-                <a href="{% url 'email_verify' %}" class="font-medium text-blue-600 hover:underline">
-                    {% if not user.emailaddress_set.first.verified %}Verify{% endif %}
-                </a>
-            </td>
-        </tr>
-
-        <tr class="border-b">
-            <th scope="row" class="py-4 text-base font-bold text-gray-900">
-                Delete Account
-            </th>
-            <td class="px-6 py-4">
-                Once deleted, account is gone. Forever.
-            </td>
-            <td class="px-6 py-4">
-                <a href="{% url 'profile_delete' %}" class="font-medium text-red-600 hover:underline">
-                    Delete
-                </a>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-
-
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

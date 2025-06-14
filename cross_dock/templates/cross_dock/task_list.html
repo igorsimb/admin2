@@ -67,7 +67,11 @@
                     </td>
                     <td class="break-words max-w-[150px]">{{ task.filename }}</td>
                     <td class="break-words max-w-[150px]">{{ task.supplier_group }}</td>
-                    <td>{{ task.user.profile.name }}</td>
+                            <td>
+                                <a href="{% url 'profile' task.user.username%}" class="link link-hover link-primary">
+                                    {{ task.user.profile.name }}
+                                </a>
+                            </td>
                     <td>
                         {% if task.status == "SUCCESS" %}
                             <span class="badge badge-success gap-1">

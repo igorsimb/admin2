@@ -1,9 +1,21 @@
-<form action="{% url 'email_change' %}" method="POST" class="flex gap-2 text-black" autocomplete="off">
-    {% csrf_token %}
-    {% for field in form %}{{ field }}{% endfor %}
-    <button class="block !bg-gray-800" type="submit">Submit</button>
-</form>
+{% load widget_tweaks %}
 
-<a hx-swap-oob="true" id="email-edit" href="{% url 'profile_settings' %}" class="font-medium text-blue-600 hover:underline">
-    Cancel
-</a>
+<form action="{% url 'email_change' %}" method="POST" class="flex flex-col sm:flex-row gap-2 w-full" autocomplete="off">
+    {% csrf_token %}
+    {% for field in form %}
+        {{ field|add_class:"input input-bordered input-sm flex-1" }}
+    {% endfor %}
+    <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        </button>
+        <a hx-swap-oob="true" id="email-edit" href="{% url 'profile_settings' %}"
+           class="btn btn-ghost btn-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </a>
+    </div>
+</form>
