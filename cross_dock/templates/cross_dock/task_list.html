@@ -262,8 +262,8 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Check if there are any pending or running tasks
-        const pendingTasks = document.querySelectorAll('span.bg-yellow-100');
-        const runningTasks = document.querySelectorAll('span.bg-blue-100');
+        const pendingTasks = document.querySelectorAll('span.badge-warning');
+        const runningTasks = document.querySelectorAll('span.badge-info');
 
         // If there are pending or running tasks, set up auto-refresh
         if (pendingTasks.length > 0 || runningTasks.length > 0) {

@@ -43,8 +43,13 @@ USER appuser
 # Expose the application port
 EXPOSE 8061
 
-# Make entry file executable
-RUN chmod +x  /app/entrypoint.prod.sh
+CMD ["sh", "-c", "\
+    python manage.py collectstatic --noinput && \
+    python manage.py migrate --noinput && \
+    python -m gunicorn --bind 0.0.0.0:8000 --workers 3 config.wsgi:application"]
 
-# Start the application using Gunicorn
-CMD ["/app/entrypoint.prod.sh"]
+## Make entry file executable
+#RUN chmod +x  /app/entrypoint.prod.sh
+#
+## Start the application using Gunicorn
+#CMD ["/app/entrypoint.prod.sh"]
