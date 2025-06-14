@@ -1,18 +1,20 @@
 {% load static %}
 
-{% if environment == 'production' %}
-    <div class="bg-error text-error-content text-sm font-medium text-center py-1">
-        PRODUCTION ENVIRONMENT
-    </div>
-{% else %}
-    <div class="bg-warning text-warning-content text-sm font-medium text-center py-1">
-        STAGING ENVIRONMENT
-    </div>
+{% if user.is_superuser %}
+    {% if environment == 'production' %}
+        <div class="bg-error text-error-content text-sm font-medium text-center py-1">
+            PRODUCTION ENVIRONMENT
+        </div>
+    {% else %}
+        <div class="bg-warning text-warning-content text-sm font-medium text-center py-1">
+            STAGING ENVIRONMENT
+        </div>
+    {% endif %}
 {% endif %}
 
 <header class="navbar bg-base-100/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 px-6 h-16 border-b border-base-200">
     <!-- Logo and Brand -->
-    <div class="flex-1">
+    <div class="flex-1 ps-2">
         <a href="/" class="flex items-center gap-2">
             <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -24,7 +26,7 @@
     </div>
 
     <!-- Desktop Navigation -->
-    <div class="flex-none hidden lg:block">
+    <div class="flex-none hidden lg:block pe-2">
         <ul class="menu menu-horizontal px-1 gap-2">
             {% if request.user.is_authenticated %}
                 <li class="flex items-center mt-2 me-3 text-base-content/60">{{ user.profile.name }}</li>

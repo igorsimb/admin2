@@ -121,7 +121,11 @@
                         </tr>
                         <tr>
                             <th>Created By</th>
-                            <td>{{ task.user.profile.display_name|default:"Anonymous" }}</td>
+                            <td>
+                                <a href="{% url 'profile' task.user.username%}" class="link link-hover link-primary">
+                                    {{ task.user.profile.name }}
+                                </a>
+                            </td>
                         </tr>
                         <tr>
                             <th>Created At</th>

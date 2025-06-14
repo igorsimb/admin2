@@ -1,0 +1,76 @@
+{% extends "core/layouts/box.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Sign in to your account{% endblock title %}
+
+{% block content %}
+    <div class="w-full max-w-md mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-base-content">Sign in to your account</h1>
+            <p class="text-base-content/70 mt-2">Enter your details below</p>
+        </div>
+
+        <!-- Error Messages -->
+        {% if form.errors %}
+            <div class="alert alert-error mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                     viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Invalid email or password. Please try again.</span>
+            </div>
+        {% endif %}
+
+        <!-- Login Form -->
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Email Field -->
+            <div class="form-control w-full">
+                <label class="label mb-1" for="{{ form.login.id_for_label }}">
+                    <span class="label-text">Email</span>
+                </label>
+                <br>
+                {{ form.login|add_class:"input input-bordered w-full" }}
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-control w-full">
+                <div class="flex justify-between items-center">
+                    <label class="label mb-1" for="{{ form.password.id_for_label }}">
+                        <span class="label-text">Password</span>
+                    </label>
+                </div>
+                {{ form.password|add_class:"input input-bordered w-full" }}
+                <br>
+                <a href="{% url 'account_reset_password' %}"
+                   class="text-sm font-medium text-primary hover:text-primary/80 mt-1">
+                    Forgot password?
+                </a>
+            </div>
+
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary w-full mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                     stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                Sign In
+            </button>
+        </form>
+
+        <!-- Sign Up Link -->
+        <div class="mt-6 text-center text-sm">
+            <p class="text-base-content/70">
+                Don't have an account?
+                <a href="{% url 'account_signup' %}" class="font-medium text-primary hover:text-primary/80">
+                    Sign up
+                </a>
+            </p>
+        </div>
+    </div>
+{% endblock content %}

@@ -1,0 +1,102 @@
+{% extends "core/layouts/box.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Create your account{% endblock title %}
+
+{% block content %}
+    <div class="w-full max-w-md mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-base-content">Create your account</h1>
+            <p class="text-base-content/70 mt-2">Enter your details below</p>
+        </div>
+
+        <!-- Error Messages -->
+        {% if form.errors %}
+            <div class="alert alert-error mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Please correct the errors below.</span>
+            </div>
+        {% endif %}
+
+        <!-- Signup Form -->
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Username Field -->
+            <div class="form-control w-full">
+                <label class="label mb-1" for="{{ form.username.id_for_label }}">
+                    <span class="label-text">Username</span>
+                </label>
+                <br>
+                {{ form.username|add_class:"input input-bordered w-full" }}
+                {% if form.username.errors %}
+                    <label class="label">
+                        <span class="label-text-alt text-error">{{ form.username.errors.0 }}</span>
+                    </label>
+                {% endif %}
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-control w-full">
+                <label class="label mb-1" for="{{ form.email.id_for_label }}">
+                    <span class="label-text">Email</span>
+                </label>
+                <br>
+                {{ form.email|add_class:"input input-bordered w-full" }}
+                {% if form.email.errors %}
+                    <label class="label">
+                        <span class="label-text-alt text-error">{{ form.email.errors.0 }}</span>
+                    </label>
+                {% endif %}
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-control w-full">
+                <label class="label mb-1" for="{{ form.password1.id_for_label }}">
+                    <span class="label-text">Password</span>
+                </label>
+                <br>
+                {{ form.password1|add_class:"input input-bordered w-full" }}
+                {% if form.password1.errors %}
+                    <label class="label">
+                        <span class="label-text-alt text-error">{{ form.password1.errors.0 }}</span>
+                    </label>
+                {% endif %}
+            </div>
+
+            <!-- Password Confirmation -->
+            <div class="form-control w-full">
+                <label class="label mb-1" for="{{ form.password2.id_for_label }}">
+                    <span class="label-text">Confirm Password</span>
+                </label>
+                {{ form.password2|add_class:"input input-bordered w-full" }}
+                {% if form.password2.errors %}
+                    <label class="label">
+                        <span class="label-text-alt text-error">{{ form.password2.errors.0 }}</span>
+                    </label>
+                {% endif %}
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary w-full mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Create Account
+            </button>
+        </form>
+
+        <!-- Login Link -->
+        <div class="mt-6 text-center text-sm">
+            <p class="text-base-content/70">
+                Already have an account?
+                <a href="{% url 'account_login' %}" class="font-medium text-primary hover:text-primary/80">
+                    Sign in
+                </a>
+            </p>
+        </div>
+    </div>
+{% endblock content %}

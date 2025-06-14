@@ -1,58 +1,127 @@
 {% extends 'core/layouts/box.html' %}
-{% block title %}Edit Profile{% endblock %}
+{% load widget_tweaks %}
+
+{% block title %}{% if onboarding %}Complete{% else %}Edit{% endif %} Your Profile{% endblock %}
 
 {% block content %}
-
-{% if onboarding %}
-    <h1 class="mb-4">Complete your Profile</h1>
-{% else %}
-    <h1 class="mb-4">Edit your Profile</h1>
-{% endif %}
-
-<div class="text-center flex flex-col items-center">
-    <img id="avatar" class="w-36 h-36 rounded-full object-cover my-4" src="{{ user.profile.avatar }}" />
-    <div class="text-center max-w-md">
-        <h1 id="display_name">{{ user.profile.display_name|default:"" }}</h1>
-        <div class="text-gray-400 mb-2 -mt-3">@{{ user.username }}</div>
+<div class="w-full max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-base-content">
+            {% if onboarding %}Complete your Profile{% else %}Edit your Profile{% endif %}
+        </h1>
+        <p class="text-base-content/70 mt-2">Update your personal information and avatar</p>
     </div>
+
+ <form method="POST" enctype="multipart/form-data" class="w-full space-y-6">
+        {% csrf_token %}
+    <!-- Avatar Section -->
+    <div class="flex flex-col items-center mb-8">
+        <div class="relative group">
+            <img id="avatar" class="w-32 h-32 rounded-full object-cover border-4 border-base-200 group-hover:border-primary transition-all duration-300" 
+                 src="{{ user.profile.avatar }}" 
+                 alt="Profile picture" />
+            <label for="{{ form.image.id_for_label }}" class="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary-focus transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {{ form.image }}
+            </label>
+        </div>
+        <div class="text-center mt-4">
+            <h2 id="display_name" class="text-xl font-semibold">{{ user.profile.display_name|default:"" }}</h2>
+            <div class="text-base-content/60">@{{ user.username }}</div>
+        </div>
+    </div>
+
+    <!-- Profile Form -->
+{#    <form method="POST" enctype="multipart/form-data" class="w-full space-y-6">#}
+{#        {% csrf_token %}#}
+        
+        <!-- Display Name -->
+        <div class="form-control w-full">
+            <div class="flex items-center justify-between mb-1">
+                <label class="text-sm font-medium text-base-content/90" for="{{ form.display_name.id_for_label }}">
+                    Display name
+                </label>
+            </div>
+            <input type="text" 
+                   name="{{ form.display_name.name }}" 
+                   id="{{ form.display_name.id_for_label }}" 
+                   value="{{ form.display_name.value|default:'' }}"
+                   class="input input-bordered w-full bg-base-200 border-base-200 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                   placeholder="Enter your display name">
+            {% if form.display_name.errors %}
+                <p class="mt-1 text-sm text-error">{{ form.display_name.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Info -->
+        <div class="form-control w-full">
+            <div class="flex items-center justify-between mb-1">
+                <label class="text-sm font-medium text-base-content/90" for="{{ form.info.id_for_label }}">
+                    Info
+                </label>
+            </div>
+            <textarea name="{{ form.info.name }}" 
+                      id="{{ form.info.id_for_label }}"
+                      class="textarea textarea-bordered w-full bg-base-200 border-base-200 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      rows="4"
+                      placeholder="Tell us about yourself">{{ form.info.value|default:'' }}</textarea>
+            {% if form.info.errors %}
+                <p class="mt-1 text-sm text-error">{{ form.info.errors.0 }}</p>
+            {% endif %}
+            <p class="mt-1 text-xs text-base-content/50">Brief description for your profile.</p>
+        </div>
+
+        <!-- Image field errors will be displayed here if any -->
+        {% if form.image.errors %}
+            <div class="text-error text-sm mt-1">{{ form.image.errors.0 }}</div>
+        {% endif %}
+
+        <!-- Form Actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-start pt-4">
+            {% if onboarding %}
+                <a href="{% url 'index' %}" class="btn btn-ghost">
+                    Skip for now
+                </a>
+            {% else %}
+                <a href="{{ request.META.HTTP_REFERER }}" class="btn btn-ghost">
+                    Cancel
+                </a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Save Changes
+            </button>
+        </div>
+    </form>
 </div>
-<form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" >Submit</button>
-    {% if onboarding %}
-        <a class="button button-gray ml-1" href="{% url 'index' %}">Skip</a>
-    {% else %}
-        <a class="button button-gray ml-1" href="{{ request.META.HTTP_REFERER }}">Cancel</a>
-    {% endif %}
-</form>
-
-
-
 
 <script>
-
-    // This updates the avatar
+    // This updates the avatar preview
     const fileInput = document.querySelector('input[type="file"]');
+    const avatarImage = document.querySelector('#avatar');
 
     fileInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    const image = document.querySelector('#avatar');
+        const file = event.target.files[0];
+        if (file && file.type.includes('image')) {
+            const url = URL.createObjectURL(file);
+            avatarImage.src = url;
+        }
+    });
 
-    if (file && file.type.includes('image')) {
-        const url = URL.createObjectURL(file);
-        image.src = url;
+    // This updates the name preview
+    const displayNameInput = document.getElementById('id_display_name');
+    const displayNameOutput = document.getElementById('display_name');
+
+    if (displayNameInput && displayNameOutput) {
+        displayNameInput.addEventListener('input', (event) => {
+            displayNameOutput.innerText = event.target.value || '{{ user.username }}';
+        });
     }
-    });
-
-    // This updates the name
-    const display_nameInput = document.getElementById('id_display_name');
-    const display_nameOutput = document.getElementById('display_name');
-
-    display_nameInput.addEventListener('input', (event) => {
-        display_nameOutput.innerText = event.target.value;
-    });
-
 </script>
-
 {% endblock %}
