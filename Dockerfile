@@ -48,7 +48,13 @@ EXPOSE 8061
 CMD ["sh", "-c", "\
     python manage.py collectstatic --noinput && \
     python manage.py migrate --noinput && \
-    python -m gunicorn --bind 0.0.0.0:8000 --workers 3 config.wsgi:application"]
+    python -m gunicorn config.wsgi:application \
+        --bind 0.0.0.0:8000 \
+        --workers 6 \
+        --threads 4 \
+        --worker-class gthread \
+        --timeout 120"]
+
 
 ## Make entry file executable
 #RUN chmod +x  /app/entrypoint.prod.sh
