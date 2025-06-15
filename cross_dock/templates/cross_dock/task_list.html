@@ -50,9 +50,23 @@
                         title="{{ task.id }}"
                         x-data="{ copied: false }"
                         x-on:click="
-                            navigator.clipboard.writeText('{{ task.id }}');
-                            copied = true;
-                            setTimeout(() => copied = false, 1500);"
+                            const textToCopy = '{{ task.id }}';
+                            if (navigator.clipboard) {
+                                navigator.clipboard.writeText(textToCopy).then(() => {
+                                    copied = true;
+                                    setTimeout(() => copied = false, 1500);
+                                }).catch(() => {
+                                    // Fallback for when clipboard API fails
+                                    copyToClipboardFallback(textToCopy);
+                                    copied = true;
+                                    setTimeout(() => copied = false, 1500);
+                                });
+                            } else {
+                                // Fallback for older browsers
+                                copyToClipboardFallback(textToCopy);
+                                copied = true;
+                                setTimeout(() => copied = false, 1500);
+                            }"
                     >
                             {{ task.id|truncatechars:8 }}
                         <span
@@ -255,6 +269,40 @@
         // .catch(error => {
         //     alert('Error: ' + error);
         // });
+    }
+</script>
+
+<!-- Clipboard fallback function for insecure contexts -->
+<script>
+    function copyToClipboardFallback(text) {
+        // Create a temporary textarea element
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        
+        // Make the textarea out of viewport
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = 0;
+        
+        // Add to document and select text
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            // Execute copy command
+            const successful = document.execCommand('copy');
+            if (!successful) {
+                console.warn('Fallback: Copying text was unsuccessful');
+                // Alternative fallback: Show the text in a prompt
+                prompt('Copy to clipboard: Ctrl+C, Enter', text);
+            }
+        } catch (err) {
+            console.error('Fallback: Could not copy text', err);
+            // Last resort: Show the text in a prompt
+            prompt('Copy to clipboard: Ctrl+C, Enter', text);
+        }
+        
+        // Clean up
+        document.body.removeChild(textarea);
     }
 </script>
 
