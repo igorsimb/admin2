@@ -30,6 +30,8 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 # Set the working directory
 WORKDIR /app
 
+RUN mkdir -p /app/media
+
 # Copy application code
 COPY --chown=appuser:appuser . .
 
@@ -38,7 +40,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Switch to non-root user
-USER appuser
+#USER appuser
 
 # Expose the application port
 EXPOSE 8061
