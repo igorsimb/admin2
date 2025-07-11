@@ -59,14 +59,6 @@
 
 ## Current Infrastructure (Simplified)
 
-### Servers & Roles
-
-| **Server**            | **Purpose**                                   |
-| --------------------- | --------------------------------------------- |
-| `87.249.37.86`        | Legacy Adminka (Prod + Test), Test ClickHouse |
-| `185.175.47.222`      | Microservices, Postgres (Prod + Test)         |
-| `87.242.110.159:8123` | Prod ClickHouse                               |
-
 ### Pain Points
 
 * **Adminka**:
