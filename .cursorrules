@@ -15,38 +15,50 @@ Type Hinting Guidelines:
 - Avoid excessive type annotations on trivial or obvious code — favor clarity over verbosity
 
 use conventional commits
+use "double quotes" instead of 'single quotes'
 
-Best Practices for Testing
-    - Follow the AAA Pattern
-        - Arrange: Set up test data and preconditions
-        - Act: Execute the code being tested
-        - Assert: Verify the results
+# Best Practices for Testing
 
-    - Use Descriptive Test Names
-        - Test names should clearly describe what's being tested
-        - Example: test_process_cross_dock_data_handles_empty_results
+- **Follow the AAA Pattern**
+    - **Arrange:** Set up all test data, mocks, and preconditions.
+    - **Act:** Execute the single function or method being tested.
+    - **Assert:** Verify the outcome against the expectations.
 
-    - One Assertion Per Test
-        - Each test should verify a single behavior
-        - Makes tests easier to understand and maintain
+- **Test a Single Logical Concept Per Test**
+    - While the "one assertion per test" rule is a good guideline, the primary goal is to ensure each test verifies a single, cohesive piece of behavior. It's acceptable to have multiple `assert` statements if they all check the state of a single resulting object or concept.
 
-    - Use Fixtures for Common Setup
-        - Create reusable test fixtures with pytest's fixture system
-        - Reduces code duplication and improves maintainability
+- **Use Descriptive Test Names**
+    - Test names should be long and descriptive, clearly stating what they are testing and under what conditions.
+    - Example: `test_start_load_mail_continues_when_one_account_fails_to_connect`
 
-    - Mock External Dependencies
-        - Isolate tests from external systems like ClickHouse
-        - Ensures tests are fast, reliable, and focused
+- **Keep Tests Independent**
+    - Tests must not depend on each other or the order in which they are run. Each test should set up its own state and be able to run in complete isolation.
 
-    - Test Edge Cases
-        - Empty data sets
-        - Error conditions
-        - Boundary values
+- **Use Fixtures for Common Setup**
+    - For complex or repeated setup logic, use pytest's `@pytest.fixture` system to create reusable test fixtures. This reduces code duplication and improves maintainability.
 
-    - Use Parameterized Tests
-        - Test multiple scenarios with different inputs
-        - Reduces code duplication
+- **Mock External Dependencies and Boundaries**
+    - Isolate tests from external systems like databases (ClickHouse), network APIs, and the filesystem.
+    - This ensures tests are fast, reliable, and focused only on the code you've written.
 
-    - Keep Tests Independent
-        - Tests should not depend on each other
-        - Each test should be able to run in isolation
+- **Use a Clear and Consistent Naming Convention for Mocks**
+    - To improve readability, use a consistent prefix for mock objects, such as `mock_`.
+    - Example: `mock_get_imap_conn`
+
+- **Test the Public Interface, Not Private Implementation**
+    - Tests should focus on the public-facing methods of your classes and modules.
+    - Avoid testing private methods (e.g., `_some_helper_function`) directly. If a private method is complex, consider moving it to its own module and testing it there.
+
+- **Keep Tests Close to the Code They Test**
+    - Mirror the `src` directory structure within the `tests` directory. This makes it easy for developers to find the tests associated with a specific piece of code.
+    - Example: `src/mail_service/mail_load.py` is tested by `tests/mail_service/test_mail_load.py`.
+
+- **Test Edge Cases**
+    - Explicitly test for scenarios like:
+        - Empty data sets or `None` inputs
+        - Error conditions and exception handling
+        - Boundary values (e.g., 0, -1, max values)
+
+- **Use Parameterized Tests for Multiple Scenarios**
+    - When testing the same logic with different inputs and expected outputs, use pytest's `@pytest.mark.parametrize` to reduce code duplication.
+
