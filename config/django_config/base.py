@@ -25,9 +25,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     # Local
+    "accounts",
     "core",
     "cross_dock",
-    "accounts",
+    "pricelens",
     # Third-party
     "django_celery_results",
     "django_htmx",
