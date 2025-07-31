@@ -17,6 +17,7 @@ urlpatterns = [
     # Local apps
     path("", include("core.urls")),
     path("cross-dock/", include("cross_dock.urls")),
+    path("pricelens/", include("pricelens.urls")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
