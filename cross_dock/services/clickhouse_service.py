@@ -6,55 +6,16 @@ It implements a context manager pattern for proper resource management and
 includes error handling with detailed logging.
 """
 
-import contextlib
 import logging
 
 import pandas as pd
-from clickhouse_driver import Client
 from django.conf import settings
+
+from common.utils.clickhouse import get_clickhouse_client
 
 logger = logging.getLogger(__name__)
 
-# Default ClickHouse connection settings
-# These will only be used if Django settings are not available
-# In production, these values should always come from Django settings
-DEFAULT_CLICKHOUSE_HOST = "localhost"
-DEFAULT_CLICKHOUSE_USER = "default"
-DEFAULT_CLICKHOUSE_PASSWORD = ""
 DAYS_LOOKBACK = 2
-
-
-@contextlib.contextmanager
-def get_clickhouse_client() -> Client:
-    """
-    Context manager for ClickHouse client connections.
-
-    Ensures proper resource management by automatically closing the connection
-    when the context is exited, even if an exception occurs.
-
-    Yields:
-        Client: A configured ClickHouse client instance
-
-    Example:
-        with get_clickhouse_client() as client:
-            result = client.execute("SELECT 1")
-    """
-    # Get connection settings from Django settings if available, otherwise use defaults
-    host = getattr(settings, "CLICKHOUSE_HOST", DEFAULT_CLICKHOUSE_HOST)
-    user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
-    password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
-
-    client = Client(host, user=user, password=password)
-    logger.debug(f"ClickHouse client connected to {host}")
-
-    try:
-        yield client
-    except Exception as e:
-        logger.error(f"Error during ClickHouse operation: {e}")
-        raise
-    finally:
-        client.disconnect()
-        logger.debug("ClickHouse client disconnected")
 
 
 def query_supplier_data(brand: str, sku: str, supplier_list: str, days_lookback: int = DAYS_LOOKBACK) -> pd.DataFrame:
@@ -78,8 +39,8 @@ def query_supplier_data(brand: str, sku: str, supplier_list: str, days_lookback:
         f"Querying supplier data for {brand}/{sku} with supplier list {supplier_list}, days_lookback={days_lookback}"
     )
 
-    host = getattr(settings, "CLICKHOUSE_HOST", DEFAULT_CLICKHOUSE_HOST)
-    user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
+    host = getattr(settings, "CLICKHOUSE_HOST", "localhost")
+    user = getattr(settings, "CLICKHOUSE_USER", "default")
     logger.info(f"Using ClickHouse connection: host={host}, user={user}")
 
     empty_df = pd.DataFrame(columns=["price", "quantity", "supplier_name"])

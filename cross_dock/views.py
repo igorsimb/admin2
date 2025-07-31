@@ -100,7 +100,7 @@ def process_file(request):
                 destination.write(chunk)
 
         try:
-            from cross_dock.services.clickhouse_service import get_clickhouse_client
+            from common.utils.clickhouse import get_clickhouse_client
 
             try:
                 with get_clickhouse_client() as client:

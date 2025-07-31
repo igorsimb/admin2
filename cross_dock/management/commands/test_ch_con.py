@@ -6,7 +6,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from cross_dock.services.clickhouse_service import get_clickhouse_client
+from common.utils.clickhouse import get_clickhouse_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

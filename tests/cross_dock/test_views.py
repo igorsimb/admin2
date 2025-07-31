@@ -146,7 +146,7 @@ class TestProcessFileSuccess:
         with (
             mock.patch("cross_dock.views.os.makedirs"),
             mock.patch("builtins.open", mock.mock_open()),
-            mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_client,
+            mock.patch("common.utils.clickhouse.get_clickhouse_client") as mock_client,
         ):
             # Mock ClickHouse connection test
             mock_client.return_value.__enter__.return_value.execute.return_value = [(1,)]
@@ -185,7 +185,7 @@ class TestProcessFileErrors:
         assert isinstance(response, HttpResponseRedirect)
         assert response.url == "/cross_dock/tasks/"
 
-    @mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client")
+    @mock.patch("common.utils.clickhouse.get_clickhouse_client")
     def test_handles_database_connection_error(self, mock_get_clickhouse_client, request_factory, excel_file):
         """Test that process_file handles database connection errors."""
         # Mock the context manager to simulate a database connection error

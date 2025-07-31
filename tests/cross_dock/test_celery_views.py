@@ -37,7 +37,7 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
     """Test that the process_file view creates a task and submits a Celery task."""
     with (
         mock.patch("cross_dock.views.process_file_task.delay") as mock_delay,
-        mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_client,
+        mock.patch("common.utils.clickhouse.get_clickhouse_client") as mock_client,
     ):
         # Mock ClickHouse client
         mock_client_instance = mock.MagicMock()
@@ -75,7 +75,7 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
 def test_process_file_view_db_error(client, authenticated_user, excel_file):
     """Test that the process_file view handles database connection errors."""
     with (
-        mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_client,
+        mock.patch("common.utils.clickhouse.get_clickhouse_client") as mock_client,
         mock.patch("cross_dock.views.os.remove") as mock_remove,
     ):
         # Mock ClickHouse client to raise an exception
