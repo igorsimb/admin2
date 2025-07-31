@@ -1,0 +1,91 @@
+{% extends "core/layouts/blank.html" %}
+
+{% block title %}Pricelens: Очередь расследований{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4 md:p-6">
+
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Главная</a></li>
+            <li><a href="{% url 'pricelens:dashboard' %}" class="text-primary">Мониторинг прихода прайс-листов</a></li>
+            <li class="text-gray-500">Очередь расследований</li>
+        </ul>
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Очередь расследований</h1>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body p-4">
+            <div class="overflow-x-auto">
+                <table class="table w-full">
+                    <thead>
+                        <tr class="[&>th]:bg-base-200 [&>th]:text-xs [&>th]:font-medium [&>th]:uppercase [&>th]:tracking-wider [&>th]:py-2 [&>th]:px-3">
+                            <th>Время события</th>
+                            <th>ID Поставщика</th>
+                            <th>Причина ошибки</th>
+                            <th>Этап</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in investigations %}
+                        <tr class="hover:bg-base-300">
+                            <td>{{ item.event_dt|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ item.supid }}</td>
+                            <td><span class="badge badge-ghost">{{ item.error_text }}</span></td>
+                            <td><span class="badge badge-outline">{{ item.stage }}</span></td>
+                            <td>
+                                <a href="{% url 'pricelens:investigate' pk=item.id %}" class="btn btn-sm btn-primary">Расследовать</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="text-base-content/50">Нет открытых расследований.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="flex flex-col md:flex-row justify-between items-center mt-4 px-6 py-3 gap-4">
+            <div class="text-sm">
+                Показано с {{ page_obj.start_index }} по {{ page_obj.end_index }} из {{ paginator.count }} записей
+            </div>
+            <div class="join">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="join-item btn btn-sm">Первая</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="join-item btn btn-sm">«</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">Первая</button>
+                    <button class="join-item btn btn-sm btn-disabled">«</button>
+                {% endif %}
+
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <a href="?page={{ num }}" class="join-item btn btn-sm btn-active">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="join-item btn btn-sm">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="join-item btn btn-sm">»</a>
+                    <a href="?page={{ paginator.num_pages }}" class="join-item btn btn-sm">Последняя</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">»</button>
+                    <button class="join-item btn btn-sm btn-disabled">Последняя</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "core/layouts/blank.html" %}
+
+{% block title %}Расследование: {{ investigation.id|truncatechars:8 }}...{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4 md:p-6">
+
+    <!-- Breadcrumbs -->
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Главная</a></li>
+            <li><a href="{% url 'pricelens:dashboard' %}" class="text-primary">Мониторинг прихода прайс-листов</a></li>
+            <li><a href="{% url 'pricelens:queue' %}" class="text-primary">Очередь расследований</a></li>
+            <li class="text-gray-500">Расследование {{ investigation.id|truncatechars:8 }}...</li>
+        </ul>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Investigation Details -->
+        <div class="md:col-span-2">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Детали расследования</h2>
+                    <div class="overflow-x-auto">
+                        <table class="table w-full">
+                            <tbody>
+                                <tr>
+                                    <th class="w-1/3">ID Расследования</th>
+                                    <td><code>{{ investigation.id }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Время события</th>
+                                    <td>{{ investigation.event_dt|date:"Y-m-d H:i:s" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>ID Поставщика</th>
+                                    <td>{{ investigation.supid }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Причина ошибки</th>
+                                    <td><span class="badge badge-error">{{ investigation.error_text }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Этап</th>
+                                    <td><span class="badge badge-outline">{{ investigation.stage }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Путь к файлу</th>
+                                    <td><code>{{ investigation.file_path }}</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-actions justify-start mt-4">
+                        <a href="#" class="btn btn-info">Скачать исходный файл</a>
+                        <a href="#" class="btn btn-ghost">Открыть поставщика в админке</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investigation Form -->
+        <div class="md:col-span-1">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Действия</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text">Заметки для команды</span>
+                            </label>
+                            <textarea class="textarea textarea-bordered h-48" placeholder="Например: связался с поставщиком, проблема на их стороне. Обещали исправить в следующем прайсе."></textarea>
+                        </div>
+                        <div class="form-control mt-6">
+                            <button type="submit" name="action" value="resolve" class="btn btn-success">Проблема решена</button>
+                        </div>
+                        <div class="form-control mt-2">
+                            <button type="submit" name="action" value="unresolve" class="btn btn-warning">Не удалось решить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
