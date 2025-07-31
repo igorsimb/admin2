@@ -1,10 +1,118 @@
 {% extends "core/layouts/blank.html" %}
-{% block title %}PriceLens{% endblock %}
+
+{% block title %}Мониторинг прихода прайс-листов{% endblock %}
+
 {% block content %}
-<div class="container mx-4 my-4">
-  <h2>PriceLens</h2>
-  <p>PriceLens is a tool for analyzing and visualizing the price history of a stock.</p>
-  <p>It provides a user-friendly interface for exploring the price history of a stock, allowing users to filter and analyze the data based on various criteria.</p>
-  <p>With PriceLens, users can easily compare the price history of a stock over time, identify trends and patterns, and make informed investment decisions.</p>
+<div class="container mx-auto p-4 md:p-6">
+
+    <!-- Breadcrumbs -->
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Главная</a></li>
+            <li class="text-gray-500">Мониторинг прихода прайс-листов</li>
+        </ul>
+    </div>
+
+    <h1 class="text-3xl font-bold mb-6">Мониторинг прихода прайс-листов</h1>
+
+    <!-- Phase 1: Summary Stats -->
+    <div class="stats shadow w-full mb-6">
+        <div class="stat">
+            <div class="stat-figure text-error">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div class="stat-title">Ошибки за вчера</div>
+            <div class="stat-value text-error">{{ summary.failures }}</div>
+            <div class="stat-desc">У {{ summary.suppliers }} поставщиков</div>
+        </div>
+    </div>
+    <!-- End of Phase 1 -->
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Phase 1: Top Reasons Card -->
+        <div class="md:col-span-1">
+            <div class="card bg-base-100 shadow-xl h-full">
+                <div class="card-body">
+                    <h2 class="card-title">Топ 5 причин ошибок</h2>
+                    <div class="overflow-x-auto">
+                        <table class="table w-full">
+                            <thead>
+                                <tr>
+                                    <th>Причина</th>
+                                    <th>Кол-во</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reason in top_reasons %}
+                                <tr>
+                                    <td><span class="badge badge-ghost">{{ reason.error_text }}</span></td>
+                                    <td>{{ reason.cnt }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-actions justify-end mt-4">
+                        <a href="{% url 'pricelens:queue' %}" class="btn btn-primary btn-sm">Вся очередь &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End of Phase 1 -->
+
+        <!-- Phase 2: Cadence & Anomaly Cards -->
+        <div class="md:col-span-2">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Cadence Buckets -->
+                <div class="lg:col-span-1">
+                    <div class="card bg-base-100 shadow-xl h-full">
+                        <div class="card-body">
+                            <h2 class="card-title">Ритмичность</h2>
+                            <div class="stats stats-vertical">
+                                {% for bucket in buckets %}
+                                <div class="stat">
+                                    <div class="stat-title">{{ bucket.bucket|title }}</div>
+                                    <div class="stat-value">{{ bucket.cnt }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anomalies Table -->
+                <div class="lg:col-span-2">
+                    <div class="card bg-base-100 shadow-xl h-full">
+                        <div class="card-body">
+                            <h2 class="card-title">Аномалии</h2>
+                            <div class="overflow-x-auto">
+                                <table class="table w-full">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Поставщика</th>
+                                            <th>Дней с последней поставки</th>
+                                            <th>Норма (дней)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for anomaly in anomalies %}
+                                        <tr>
+                                            <td>{{ anomaly.supid }}</td>
+                                            <td><span class="badge badge-warning">{{ anomaly.days_since_last }}</span></td>
+                                            <td>{{ anomaly.median_gap_days }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End of Phase 2 -->
+    </div>
+
 </div>
 {% endblock %}
+
