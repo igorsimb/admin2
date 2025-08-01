@@ -18,6 +18,7 @@ urlpatterns = [
     path("", include("core.urls")),
     path("cross-dock/", include("cross_dock.urls")),
     path("pricelens/", include("pricelens.urls")),
+    path("api/v1/pricelens/", include("pricelens.urls_api")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

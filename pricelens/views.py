@@ -1,97 +1,121 @@
 import datetime
-import random
-import uuid
 
+from django.db.models import Count, F
 from django.shortcuts import redirect
 from django.utils import timezone
-from django.views.generic import ListView, TemplateView
+from django.views import generic
+
+from .models import BucketChoices, CadenceProfile, Investigation, InvestigationStatus
 
 
-class DashboardView(TemplateView):
+class DashboardView(generic.TemplateView):
     template_name = "pricelens/dashboard.html"
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        ctx = super().get_context_data(**kwargs)
+        yesterday_open = Investigation.objects.filter(
+            status=InvestigationStatus.OPEN,
+            event_dt__date=timezone.now().date() - datetime.timedelta(days=1),
+        )
+        top = yesterday_open.values("error_text").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
-        # Phase 1: Dummy data for the dashboard widgets
-        context["summary"] = {
-            "failures": 284,
-            "suppliers": 23,
-        }
-        context["top_reasons"] = [
-            {"error_text": "SKU_FORMAT_INVALID", "cnt": 112},
-            {"error_text": "FILE_READ_ERROR", "cnt": 75},
-            {"error_text": "PRICE_DEVIATION_HIGH", "cnt": 43},
-            {"error_text": "COLUMN_MISSING_VALUES", "cnt": 28},
-            {"error_text": "DIF_STEP1_WRITE_ERROR", "cnt": 11},
-        ]
-        # End of Phase 1 data
+        # Get counts for each status
+        status_counts = Investigation.objects.values("status").annotate(cnt=Count("id")).order_by("status")
+        status_counts_dict = {s["status"]: s["cnt"] for s in status_counts}
 
-        # Phase 2: Dummy data for cadence and anomaly widgets
-        context["buckets"] = [
-            {"bucket": "Стабильные", "cnt": 85},
-            {"bucket": "Нестабильные", "cnt": 22},
-            {"bucket": "Мертвые", "cnt": 7},
-        ]
-        context["anomalies"] = [
-            {"supid": 1234, "days_since_last": 10, "median_gap_days": 3},
-            {"supid": 5678, "days_since_last": 7, "median_gap_days": 2},
-            {"supid": 9012, "days_since_last": 14, "median_gap_days": 5},
-            {"supid": 3456, "days_since_last": 5, "median_gap_days": 1},
-            {"supid": 7890, "days_since_last": 21, "median_gap_days": 7},
-        ]
-        # End of Phase 2 data
-
-        return context
-
-
-class QueueView(ListView):
-    template_name = "pricelens/queue.html"
-    context_object_name = "investigations"
-    paginate_by = 15
-
-    def get_queryset(self):
-        # Phase 3: Generate dummy investigation data
-        reasons = [
-            "SKU_FORMAT_INVALID",
-            "FILE_READ_ERROR",
-            "PRICE_DEVIATION_HIGH",
-            "COLUMN_MISSING_VALUES",
-            "DIF_STEP1_WRITE_ERROR",
-        ]
-        stages = ["load_mail", "consolidate", "airflow"]
-
-        queryset = []
-        for i in range(78):  # Create 78 dummy items for pagination
-            event_time = timezone.now() - datetime.timedelta(hours=i, minutes=random.randint(0, 59))
-            queryset.append(
+        investigation_stats = []
+        for value, label in InvestigationStatus.choices:
+            investigation_stats.append(
                 {
-                    "id": uuid.uuid4(),
-                    "event_dt": event_time,
-                    "supid": random.randint(1000, 9999),
-                    "error_text": random.choice(reasons),
-                    "stage": random.choice(stages),
+                    "label": label.capitalize(),
+                    "value": value,
+                    "count": status_counts_dict.get(value, 0),
                 }
             )
-        return queryset
+
+        # Get counts for each bucket
+        bucket_counts = CadenceProfile.objects.values("bucket").annotate(cnt=Count("supplier"))
+        bucket_counts_dict = {b["bucket"]: b["cnt"] for b in bucket_counts}
+
+        # Enforce static order and use Russian labels
+        ordered_buckets = []
+        tooltips = {
+            BucketChoices.CONSISTENT: "Поставщик, у которого стандартное отклонение меньше или равно половине медианного интервала",  # noqa: RUF001
+            BucketChoices.INCONSISTENT: "Поставщик, у которого стандартное отклонение больше половины медианного интервала",  # noqa: RUF001
+            BucketChoices.DEAD: "Поставщик, от которого не было успешных поставок 28 дней или более",
+        }
+        for value, label in BucketChoices.choices:
+            ordered_buckets.append(
+                {
+                    "label": label,
+                    "count": bucket_counts_dict.get(value, 0),
+                    "tooltip": tooltips.get(value, ""),
+                }
+            )
+
+        ctx.update(
+            {
+                "summary": {
+                    "failures": yesterday_open.count(),
+                    "suppliers": yesterday_open.values("supplier").distinct().count(),
+                },
+                "top_reasons": list(top),
+                "investigation_stats": investigation_stats,
+                "buckets": ordered_buckets,
+                "anomalies": CadenceProfile.objects.exclude(bucket=BucketChoices.DEAD)
+                .filter(days_since_last__gt=F("median_gap_days") * 2)
+                .order_by("-days_since_last")[:50],
+            }
+        )
+        return ctx
 
 
-class InvestigationDetailView(TemplateView):
-    template_name = "pricelens/investigate.html"
+class QueueView(generic.ListView):
+    model = Investigation
+    template_name = "pricelens/queue.html"
+    paginate_by = 50
+    context_object_name = "investigations"
+
+    def get_queryset(self):
+        queryset = Investigation.objects.all()
+
+        # Filter by status from URL query param. Default to OPEN if no param.
+        status_filter = self.request.GET.get("status")
+
+        if status_filter and status_filter.isdigit():
+            queryset = queryset.filter(status=int(status_filter))
+        elif status_filter is None:
+            queryset = queryset.filter(status=InvestigationStatus.OPEN)
+        # If status is 'all' or something else, we show all records.
+
+        return queryset.order_by("-event_dt")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Phase 4: Generate a single dummy object for the detail view
-        context["investigation"] = {
-            "id": kwargs.get("pk"),
-            "event_dt": timezone.now() - datetime.timedelta(hours=random.randint(1, 24)),
-            "supid": random.randint(1000, 9999),
-            "error_text": random.choice(["SKU_FORMAT_INVALID", "FILE_READ_ERROR", "PRICE_DEVIATION_HIGH"]),
-            "stage": random.choice(["load_mail", "consolidate", "airflow"]),
-            "file_path": f"/daily_consolidation/2025-07-30/sup_{random.randint(1000, 9999)}.csv",
-        }
+        # Pass the status choices and the current filter to the template
+        context["status_choices"] = InvestigationStatus.choices
+        # Default to '0' (OPEN) for the active button state if not specified
+        context["current_status"] = self.request.GET.get("status", str(InvestigationStatus.OPEN))
         return context
 
-    def post(self, request, *args, **kwargs):
-        # Simulate form submission
+
+class InvestigationDetailView(generic.UpdateView):
+    model = Investigation
+    fields = ["note"]  # note editable
+    template_name = "pricelens/investigate.html"
+    context_object_name = "investigation"
+
+    def form_valid(self, form):
+        obj = self.get_object()
+        obj.note = form.cleaned_data["note"]
+
+        action = self.request.POST.get("action")
+        if action == "resolve":
+            obj.status = InvestigationStatus.RESOLVED
+        else:
+            obj.status = InvestigationStatus.UNRESOLVED
+
+        obj.investigated_at = timezone.now()
+        obj.investigator = self.request.user
+        obj.save()
         return redirect("pricelens:queue")

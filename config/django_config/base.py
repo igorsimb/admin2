@@ -24,21 +24,31 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    # Local
-    "accounts",
-    "core",
-    "cross_dock",
-    "pricelens",
-    # Third-party
-    "django_celery_results",
-    "django_htmx",
-    "template_partials",
+    # Third-party apps
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "widget_tweaks",
-    "django_cleanup.apps.CleanupConfig",
+    "django_celery_results",
+    "rest_framework",
+    "rest_framework.authtoken",
+    # Local apps
+    "core.apps.CoreConfig",
+    "accounts.apps.UsersConfig",
+    "cross_dock.apps.CrossDockConfig",
+    "pricelens.apps.PricelensConfig",
+    "common.apps.CommonConfig",
 ]
+
+# Django Rest Framework
+# ==============================================================================
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

@@ -21,3 +21,16 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Supplier(BaseModel):
+    """
+    Represents a supplier.
+    """
+
+    supid = models.PositiveIntegerField(primary_key=True, help_text="The supplier's unique ID (dif_id from ClickHouse)")
+    name = models.CharField(max_length=255)
+    is_partner = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.name} ({self.supid})"

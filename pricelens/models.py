@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from common.models import BaseModel
+from common.models import BaseModel, Supplier
 
 User = get_user_model()
 
@@ -25,7 +25,7 @@ class BucketChoices(models.TextChoices):
 class Investigation(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     event_dt = models.DateTimeField(db_index=True)
-    supid = models.PositiveIntegerField(db_index=True)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
     error_id = models.PositiveIntegerField(db_index=True)
     error_text = models.CharField(max_length=128)
     stage = models.CharField(max_length=32)  # load_mail / load_ftp / consolidate / airflow
@@ -38,7 +38,7 @@ class Investigation(BaseModel):
     class Meta:
         indexes = [
             models.Index(fields=["status", "event_dt"]),
-            models.Index(fields=["supid", "event_dt"]),
+            models.Index(fields=["supplier", "event_dt"]),
         ]
 
     @property
@@ -53,18 +53,18 @@ class Investigation(BaseModel):
 
 class CadenceDaily(models.Model):
     date = models.DateField(db_index=True)
-    supid = models.PositiveIntegerField(db_index=True)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
     had_file = models.BooleanField(default=False)
     attempts = models.PositiveIntegerField(default=0)
     errors = models.PositiveIntegerField(default=0)
     last_stage = models.CharField(max_length=32, blank=True, default="")
 
     class Meta:
-        unique_together = ("date", "supid")
+        unique_together = ("date", "supplier")
 
 
 class CadenceProfile(BaseModel):
-    supid = models.PositiveIntegerField(primary_key=True)
+    supplier = models.OneToOneField(Supplier, on_delete=models.CASCADE, primary_key=True)
     median_gap_days = models.PositiveIntegerField()
     sd_gap = models.FloatField()
     days_since_last = models.PositiveIntegerField()

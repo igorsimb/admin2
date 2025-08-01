@@ -1,10 +1,15 @@
-"""
-Factory classes for cross-dock tests.
-
-This module contains factory classes for creating test data for cross-dock tests.
-"""
-
 import factory
+from factory.django import DjangoModelFactory
+
+from common.models import Supplier
+
+
+class SupplierFactory(DjangoModelFactory):
+    class Meta:
+        model = Supplier
+
+    supid = factory.Sequence(lambda n: n)
+    name = factory.Faker("company")
 
 
 class SupplierDataFactory(factory.Factory):

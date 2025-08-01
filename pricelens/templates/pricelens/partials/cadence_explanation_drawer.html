@@ -1,0 +1,116 @@
+<div class="drawer drawer-end fixed inset-0 z-50">
+    <input id="cadence-explanation-drawer" type="checkbox" class="drawer-toggle"/>
+    <div class="drawer-content">
+    </div>
+    <div class="drawer-side">
+        <label for="cadence-explanation-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+        <div class="p-4 w-11/12 md:w-1/2 max-w-lg min-h-full bg-base-200 text-base-content space-y-4">
+            <!-- Drawer content here -->
+            <h3 class="text-xl font-bold my-4">Как рассчитывается ритмичность?</h3>
+
+            <p>
+                Цель этого расчета — ответить на вопрос: <strong>"Насколько ритмичен и предсказуем этот
+                поставщик?"</strong>
+                Расчет основан на анализе <strong>промежутков (в днях)</strong> между успешными поставками прайс-листов.
+            </p>
+
+            <div>
+                <h4 class="text-lg font-semibold">Шаг 1: Поиск успешных поставок</h4>
+                <p>Сначала мы собираем историю всех дней за последние 180 дней, когда поставщик успешно прислал нам
+                    прайс-лист.</p>
+            </div>
+
+            <div>
+                <h4 class="text-lg font-semibold">Шаг 2: Расчет промежутков</h4>
+                <p>Далее, для каждого поставщика мы берем его список успешных дат и вычисляем количество дней
+                    <em>между</em> каждой из этих дат. Если поставщик присылал файлы 10-го, 13-го и 17-го июля, то
+                    промежутки между ними составляют <code>[3 дня, 4 дня]</code>. Этот массив промежутков — самая важная
+                    информация для анализа.</p>
+            </div>
+
+            <div>
+                <h4 class="text-lg font-semibold">Шаг 3: Ключевые статистические показатели</h4>
+                <div class="space-y-3 mt-2">
+                    <div>
+                        <p><strong>1. Медиана (<code>med_gap</code>):</strong> Это "типичное" количество дней между поставками.</p>
+                    </div>
+                    <div>
+                        <p><strong>2. <a href="https://ru.wikipedia.org/wiki/%D0%A1%D1%80%D0%B5%D0%B4%D0%BD%D0%B5%D0%BA%D0%B2%D0%B0%D0%B4%D1%80%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%B5_%D0%BE%D1%82%D0%BA%D0%BB%D0%BE%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5" target="_blank" class="link">Стандартное отклонение</a> (<code>sd_gap</code>):</strong> Эта метрика измеряет, насколько "разбросаны" или нестабильны промежутки. Низкое значение означает, что поставщик очень последователен. Высокое значение — что поставки происходят хаотично.</p>
+                    </div>
+                    <div>
+                        <p><strong>3. Процент "плохих" промежутков:</strong> Мы считаем промежуток "плохим", если он более чем в два раза превышает типичный (медианный) промежуток для этого поставщика. Этот показатель помогает игнорировать единичные сбои.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-lg font-semibold">Шаг 4: Логика распределения по категориям</h4>
+                <p>Мы используем эти метрики, чтобы присвоить каждому поставщику категорию в строгом порядке:</p>
+                <div class="space-y-3 mt-2">
+                    <div>
+                        <p><strong>1. Мертвые:</strong> Если от поставщика не было поставок 28 дней или более.</p>
+                        <code class="text-xs bg-base-300 p-1 rounded">days_since_last >= 28</code>
+                    </div>
+                     <div>
+                        <p><strong>2. Стабильные:</strong> Если поставщик не "мертвый" и соответствует <strong>хотя бы одному</strong> из этих критериев:</p>
+                        <ul class="list-disc list-inside pl-4 space-y-1 mt-1">
+                            <li>Его общая нестабильность (стандартное отклонение) не превышает его типичный интервал.
+                                <code class="block text-xs bg-base-300 p-1 rounded mt-1">sd_gap <= med_gap * 1.0</code>
+                            </li>
+                            <li>Или, у него очень мало серьезных сбоев (менее 20% "плохих" промежутков).
+                                <code class="block text-xs bg-base-300 p-1 rounded mt-1">bad_gap_percentage < 20%</code>
+                            </li>
+                        </ul>
+                    </div>
+                     <div>
+                        <p><strong>3. Нестабильные:</strong> Если поставщик не "мертвый" и не прошел ни одну из проверок на "стабильность". Это указывает на частые и значительные сбои в ритме поставок.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div>
+                <h4 class="text-lg font-semibold">Конкретные примеры</h4>
+                <div class="space-y-4 mt-2">
+                    <div class="p-3 bg-base-300/50 rounded-lg">
+                        <p><strong>Поставщик А: Надежный работник (с одним сбоем)</strong></p>
+                        <ul class="list-disc list-inside text-sm space-y-1 mt-1">
+                            <li><strong>Сценарий:</strong> Поставляет почти каждый день, но один раз был долгий перерыв (например, из-за проблемы на нашей стороне).</li>
+                            <li><strong>Промежутки:</strong> <code>[1, 1, 1, 1, 21, 1, 1, 1, 1]</code> (9 промежутков)</li>
+                            <li><strong>Медианный промежуток (<code>med_gap</code>):</strong> 1 день.</li>
+                            <li><strong>Стандартное отклонение (<code>sd_gap</code>):</strong> ~6.2 дня (очень высокое из-за одного выброса).</li>
+                            <li><strong>Проверка 1 (по отклонению):</strong> 6.2 <= 1 * 1.0? <span class="text-error font-bold">Нет.</span></li>
+                            <li><strong>Проверка 2 (по выбросам):</strong>
+                                <ul class="list-inside list-[circle] pl-4">
+                                    <li>"Плохие" промежутки (те, что > 2 * med_gap): только один - <code>21</code>.</li>
+                                    <li>Процент плохих: (1 / 9) * 100 = 11.1%.</li>
+                                    <li>11.1% < 20%? <span class="text-success font-bold">Да.</span></li>
+                                </ul>
+                            </li>
+                            <li><strong>Результат:</strong> Так как вторая проверка пройдена, поставщик <span class="font-bold text-success">Стабильный</span>.</li>
+                        </ul>
+                    </div>
+                    <div class="p-3 bg-base-300/50 rounded-lg">
+                        <p><strong>Поставщик Б: Хаотичный барабанщик</strong></p>
+                        <ul class="list-disc list-inside text-sm space-y-1 mt-1">
+                            <li><strong>Сценарий:</strong> Поставляет файлы без какой-либо предсказуемой системы.</li>
+                            <li><strong>Промежутки:</strong> <code>[1, 7, 2, 1, 8, 1, 9]</code> (7 промежутков)</li>
+                            <li><strong>Медианный промежуток (<code>med_gap</code>):</strong> 2 дня.</li>
+                            <li><strong>Стандартное отклонение (<code>sd_gap</code>):</strong> ~3.4 дня (высокое).</li>
+                            <li><strong>Проверка 1 (по отклонению):</strong> 3.4 <= 2 * 1.0? <span class="text-error font-bold">Нет.</span></li>
+                            <li><strong>Проверка 2 (по выбросам):</strong>
+                                 <ul class="list-inside list-[circle] pl-4">
+                                    <li>"Плохие" промежутки (те, что > 4): <code>[7, 8, 9]</code> (всего 3).</li>
+                                    <li>Процент плохих: (3 / 7) * 100 = 42.8%.</li>
+                                    <li>42.8% < 20%? <span class="text-error font-bold">Нет.</span></li>
+                                </ul>
+                            </li>
+                            <li><strong>Результат:</strong> Провалил обе проверки. Этот поставщик <span class="font-bold text-error">Нестабильный</span>.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
