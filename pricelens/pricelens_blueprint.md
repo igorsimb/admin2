@@ -183,9 +183,7 @@ stats AS
 (
     SELECT
         supid,
-        arrayFilter(x -> x > 0,
-            arrayMap(i -> dateDiff('day', days[i-1], days[i]), arrayEnumerate(days))
-        )                                     AS gaps,
+        arrayFilter(x -> x > 0, arrayDifference(arrayMap(d -> toUInt32(d), days))) AS gaps,
         arrayReduce('quantileExact(0.5)', gaps) AS med_gap,
         arrayReduce('stddevPop', gaps)          AS sd_gap,
         dateDiff('day', arrayMax(days), today()) AS days_since_last,
@@ -202,7 +200,7 @@ Python side will:
 ```python
 bucket = (
     "dead" if days_since_last >= 28
-    else "consistent" if sd_gap <= med_gap * 0.5
+    else "consistent" if sd_gap <= med_gap * 1.0
     else "inconsistent"
 )
 

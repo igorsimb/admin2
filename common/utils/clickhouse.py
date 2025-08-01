@@ -22,13 +22,16 @@ DEFAULT_CLICKHOUSE_PASSWORD = ""
 
 
 @contextlib.contextmanager
-def get_clickhouse_client() -> Client:
+def get_clickhouse_client(readonly: int = 1) -> Client:
     """
     Provides a managed ClickHouse client connection.
 
     This context manager handles the creation and teardown of the ClickHouse
     client, including fetching credentials from Django settings and ensuring
     the connection is always closed.
+
+    Args:
+        readonly (int, optional): Whether to open the connection in read-only mode (1) or not (0). Defaults to 1.
 
     Yields:
         Client: A configured and connected ClickHouse client instance.
@@ -47,7 +50,7 @@ def get_clickhouse_client() -> Client:
     user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
     password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
 
-    client = Client(host, user=user, password=password, settings={"readonly": 0})
+    client = Client(host, user=user, password=password, settings={"readonly": readonly})
     logger.debug(f"Connecting to ClickHouse at {host}...")
 
     try:

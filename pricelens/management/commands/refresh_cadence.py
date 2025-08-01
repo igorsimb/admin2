@@ -64,7 +64,7 @@ class Command(BaseCommand):
         params = {"supids": supplier_ids}
 
         try:
-            with get_clickhouse_client() as client:
+            with get_clickhouse_client(readonly=0) as client:
                 if client is None:
                     self.stderr.write(self.style.ERROR("Failed to get ClickHouse client. Aborting."))
                     return
@@ -111,10 +111,7 @@ class Command(BaseCommand):
                 bad_gap_percentage = (bad_gaps / total_gaps) * 100 if total_gaps > 0 else 0
                 is_consistent_by_outliers = bad_gap_percentage < BAD_GAP_PERCENTAGE_THRESHOLD
 
-                if is_consistent_by_std_dev or is_consistent_by_outliers:
-                    bucket = "consistent"
-                else:
-                    bucket = "inconsistent"
+                bucket = "consistent" if is_consistent_by_std_dev or is_consistent_by_outliers else "inconsistent"
 
             profile_data = {
                 "median_gap_days": round(med_gap),
