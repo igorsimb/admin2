@@ -47,7 +47,7 @@ def get_clickhouse_client() -> Client:
     user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
     password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
 
-    client = Client(host, user=user, password=password)
+    client = Client(host, user=user, password=password, settings={"readonly": 0})
     logger.debug(f"Connecting to ClickHouse at {host}...")
 
     try:

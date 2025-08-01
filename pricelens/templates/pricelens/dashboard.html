@@ -19,12 +19,27 @@
     <div class="stats shadow w-full mb-6">
         <div class="stat">
             <div class="stat-figure text-error">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
             </div>
             <div class="stat-title">Ошибки за вчера</div>
             <div class="stat-value text-error">{{ summary.failures }}</div>
             <div class="stat-desc">У {{ summary.suppliers }} поставщиков</div>
         </div>
+
+        <!-- New Investigation Status Stats -->
+        {% for stat in investigation_stats %}
+            <div class="stat">
+                <div class="stat-title">{{ stat.label }}</div>
+                <div class="stat-value"><a
+                        href="{% url 'pricelens:queue' %}?status={{ stat.value }}">{{ stat.count }}</a></div>
+                <div class="stat-desc"><a href="{% url 'pricelens:queue' %}?status={{ stat.value }}"
+                                          class="link link-hover">Посмотреть</a></div>
+            </div>
+        {% endfor %}
     </div>
     <!-- End of Phase 1 -->
 
@@ -37,18 +52,18 @@
                     <div class="overflow-x-auto">
                         <table class="table w-full">
                             <thead>
-                                <tr>
-                                    <th>Причина</th>
-                                    <th>Кол-во</th>
-                                </tr>
+                            <tr>
+                                <th>Причина</th>
+                                <th>Кол-во</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {% for reason in top_reasons %}
+                            {% for reason in top_reasons %}
                                 <tr>
                                     <td><span class="badge badge-ghost">{{ reason.error_text }}</span></td>
                                     <td>{{ reason.cnt }}</td>
                                 </tr>
-                                {% endfor %}
+                            {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -67,13 +82,27 @@
                 <div class="lg:col-span-1">
                     <div class="card bg-base-100 shadow-xl h-full">
                         <div class="card-body">
-                            <h2 class="card-title">Ритмичность</h2>
+                            <h2 class="card-title">Ритмичность
+                                <label for="cadence-explanation-drawer"
+                                       class="drawer-button btn btn-xs btn-ghost btn-circle">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                         class="inline-block w-4 h-4 stroke-current">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </label>
+                            </h2>
                             <div class="stats stats-vertical">
                                 {% for bucket in buckets %}
-                                <div class="stat">
-                                    <div class="stat-title">{{ bucket.bucket|title }}</div>
-                                    <div class="stat-value">{{ bucket.cnt }}</div>
-                                </div>
+                                    <div class="stat">
+                                        <div
+                                                class="stat-title"
+                                                style="text-decoration: underline dotted;cursor:help; text-underline-offset: 3px;"
+                                                title="{{ bucket.tooltip }}">
+                                            {{ bucket.label }}
+                                        </div>
+                                        <div class="stat-value">{{ bucket.count }}</div>
+                                    </div>
                                 {% endfor %}
                             </div>
                         </div>
@@ -84,24 +113,33 @@
                 <div class="lg:col-span-2">
                     <div class="card bg-base-100 shadow-xl h-full">
                         <div class="card-body">
-                            <h2 class="card-title">Аномалии</h2>
+                            <h2
+                                    class="card-title"
+                                    title="Текущая задержка в поставке прайс-листа более чем в два раза превышает обычный (медианный) интервал"
+                                    style="text-decoration: underline dotted;cursor:help; text-underline-offset: 3px;">
+                                Аномалии
+                            </h2>
                             <div class="overflow-x-auto">
                                 <table class="table w-full">
                                     <thead>
-                                        <tr>
-                                            <th>ID Поставщика</th>
-                                            <th>Дней с последней поставки</th>
-                                            <th>Норма (дней)</th>
-                                        </tr>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Имя</th>
+                                        <th>Дней с посл. прайс-листа</th>
+                                        <th>Норма (дней)</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        {% for anomaly in anomalies %}
+                                    {% for anomaly in anomalies %}
                                         <tr>
-                                            <td>{{ anomaly.supid }}</td>
-                                            <td><span class="badge badge-warning">{{ anomaly.days_since_last }}</span></td>
+                                            <td>{{ anomaly.supplier.supid }}</td>
+                                            <td>{{ anomaly.supplier.name }}</td>
+                                            <td><span
+                                                    class="badge badge-warning">{{ anomaly.days_since_last }}</span>
+                                            </td>
                                             <td>{{ anomaly.median_gap_days }}</td>
                                         </tr>
-                                        {% endfor %}
+                                    {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
@@ -113,6 +151,8 @@
         <!-- End of Phase 2 -->
     </div>
 
+    {% include "pricelens/partials/cadence_explanation_drawer.html" %}
+    
 </div>
 {% endblock %}
 

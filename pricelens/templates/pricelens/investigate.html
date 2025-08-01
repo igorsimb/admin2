@@ -34,7 +34,11 @@
                                 </tr>
                                 <tr>
                                     <th>ID Поставщика</th>
-                                    <td>{{ investigation.supid }}</td>
+                                    <td>{{ investigation.supplier.supid }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Имя поставщика</th>
+                                    <td>{{ investigation.supplier.name }}</td>
                                 </tr>
                                 <tr>
                                     <th>Причина ошибки</th>
@@ -67,10 +71,10 @@
                     <form method="post">
                         {% csrf_token %}
                         <div class="form-control">
-                            <label class="label">
+                            <label class="label" for="id_note">
                                 <span class="label-text">Заметки для команды</span>
                             </label>
-                            <textarea class="textarea textarea-bordered h-48" placeholder="Например: связался с поставщиком, проблема на их стороне. Обещали исправить в следующем прайсе."></textarea>
+                            <textarea name="note" id="id_note" class="textarea textarea-bordered h-48" placeholder="Например: колонки бренд и цена в админке не совпадали с файлом.">{{ form.note.value|default_if_none:'' }}</textarea>
                         </div>
                         <div class="form-control mt-6">
                             <button type="submit" name="action" value="resolve" class="btn btn-success">Проблема решена</button>

@@ -157,7 +157,177 @@ python manage.py migrate pricelens
 
 ## 3. ClickHouse queries & daily materialisation
 
-(No changes to this section. The SQL queries are sound.)
+3.1 Success calendar per supplier (180 days)
+```sql
+/* CH view (optional) */
+CREATE OR REPLACE VIEW sup_stat.success_days_180 AS
+SELECT
+    supid,
+    dateupd AS d
+FROM sup_stat.dif_step_1
+WHERE dateupd >= today() - 180
+GROUP BY supid, d;
+```
+
+3.2 Cadence profile query (used by Celery task)
+```sql
+WITH by_sup AS
+(
+    SELECT
+        supid,
+        arraySort(groupArray(d)) AS days
+    FROM sup_stat.success_days_180
+    GROUP BY supid
+),
+stats AS
+(
+    SELECT
+        supid,
+        arrayFilter(x -> x > 0,
+            arrayMap(i -> dateDiff('day', days[i-1], days[i]), arrayEnumerate(days))
+        )                                     AS gaps,
+        arrayReduce('quantileExact(0.5)', gaps) AS med_gap,
+        arrayReduce('stddevPop', gaps)          AS sd_gap,
+        dateDiff('day', arrayMax(days), today()) AS days_since_last,
+        arrayMax(days)                           AS last_success_date
+    FROM by_sup
+)
+SELECT *
+FROM stats
+WHERE length(gaps) >= 1;   -- skip suppliers with <2 successes
+
+```
+
+Python side will:
+```python
+bucket = (
+    "dead" if days_since_last >= 28
+    else "consistent" if sd_gap <= med_gap * 0.5
+    else "inconsistent"
+)
+
+```
+
+#### Пример расчета стандартного отклонения (sd_gap)
+
+Чтобы понять, откуда берутся значения `sd_gap`, рассмотрим пример "Хаотичного барабанщика" с промежутками `[2, 8, 3, 10, 5]`.
+
+**Шаг 1: Находим среднее арифметическое**
+
+Сначала мы вычисляем среднее значение (mean) для этого набора данных.
+
+- **Сумма:** `2 + 8 + 3 + 10 + 5 = 28`
+- **Количество:** 5 значений
+- **Среднее:** `28 / 5 = 5.6`
+
+**Шаг 2: Рассчитываем дисперсию (Variance)**
+
+Далее, для каждого значения мы измеряем, насколько оно отклоняется от среднего (5.6), возводим эту разницу в квадрат, а затем находим среднее этих квадратов.
+
+1.  `(2 - 5.6)² = (-3.6)² = 12.96`
+2.  `(8 - 5.6)² = (2.4)² = 5.76`
+3.  `(3 - 5.6)² = (-2.6)² = 6.76`
+4.  `(10 - 5.6)² = (4.4)² = 19.36`
+5.  `(5 - 5.6)² = (-0.6)² = 0.36`
+
+Теперь находим среднее этих "квадратов отклонений":
+
+- **Сумма квадратов:** `12.96 + 5.76 + 6.76 + 19.36 + 0.36 = 45.2`
+- **Дисперсия:** `45.2 / 5 = 9.04`
+
+**Шаг 3: Находим стандартное отклонение**
+
+Стандартное отклонение — это просто **квадратный корень из дисперсии**. Это возвращает нас к исходной единице измерения (дням).
+
+- **Стандартное отклонение:** `√9.04 ≈ 3.01`
+
+Таким образом, точное значение `sd_gap` для этого примера составляет **~3.01**, что и используется для классификации поставщика как "Нестабильного".
+
+3.3 Tables involved (DDL)
+```sql
+-- sup_stat.dif_step_1 definition
+
+CREATE TABLE sup_stat.dif_step_1
+(
+
+    `dateupd` Date,
+
+    `supid` Int32,
+
+    `b` String,
+
+    `a` String,
+
+    `p` Float64,
+
+    `q` Int32
+)
+ENGINE = ReplacingMergeTree
+PARTITION BY toYYYYMMDD(dateupd)
+ORDER BY (dateupd,
+ supid,
+ b,
+ a)
+TTL dateupd + toIntervalMonth(15)
+SETTINGS index_granularity = 8192;
+```
+
+```sql
+-- sup_stat.error_list definition
+
+CREATE TABLE sup_stat.error_list
+(
+
+    `id` UInt32,
+
+    `error_text` String
+)
+ENGINE = MergeTree
+ORDER BY id
+SETTINGS index_granularity = 8192;
+```
+
+```sql
+-- sup_stat.dif_errors definition
+
+CREATE TABLE sup_stat.dif_errors
+(
+
+    `dt` DateTime,
+
+    `supid` UInt32,
+
+    `error_id` UInt32
+)
+ENGINE = MergeTree
+ORDER BY (dt,
+ supid)
+SETTINGS index_granularity = 8192;
+```
+
+reference table for names of suppliers (supid from other tables  = dif_id from this table). We need the name.
+
+```sql
+-- sup_stat.sup_list definition
+
+CREATE TABLE sup_stat.sup_list
+(
+
+    `dif_id` Int32,
+
+    `skl` String,
+
+    `name` String,
+
+    `post` UInt64,
+
+    `lists` Array(String)
+)
+ENGINE = ReplacingMergeTree
+ORDER BY dif_id
+SETTINGS index_granularity = 8192
+COMMENT 'post = "Delivery time (in hours)"';
+```
 
 ---
 

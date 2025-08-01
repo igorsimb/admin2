@@ -15,6 +15,16 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">Очередь расследований</h1>
+        <div class="tabs tabs-lift">
+            <a href="?status=all" class="tab {% if current_status == 'all' %}tab-active{% endif %}">Все</a>
+            {% for value, label in status_choices %}
+                <a href="?status={{ value }}" class="tab {% if current_status == value|stringformat:'s' %}tab-active{% endif %}">
+                    <span class="{% if value == 1 %}text-success{% elif value == 2 %}text-error{% endif %}">
+                        {{ label|capfirst }}
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="card bg-base-100 shadow-xl">
@@ -25,8 +35,11 @@
                         <tr class="[&>th]:bg-base-200 [&>th]:text-xs [&>th]:font-medium [&>th]:uppercase [&>th]:tracking-wider [&>th]:py-2 [&>th]:px-3">
                             <th>Время события</th>
                             <th>ID Поставщика</th>
+                            <th>Имя поставщика</th>
                             <th>Причина ошибки</th>
                             <th>Этап</th>
+                            <th>Статус</th>
+                            <th>Заметка</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -34,17 +47,34 @@
                         {% for item in investigations %}
                         <tr class="hover:bg-base-300">
                             <td>{{ item.event_dt|date:"Y-m-d H:i:s" }}</td>
-                            <td>{{ item.supid }}</td>
+                            <td>{{ item.supplier.supid }}</td>
+                            <td>{{ item.supplier.name }}</td>
                             <td><span class="badge badge-ghost">{{ item.error_text }}</span></td>
                             <td><span class="badge badge-outline">{{ item.stage }}</span></td>
                             <td>
-                                <a href="{% url 'pricelens:investigate' pk=item.id %}" class="btn btn-sm btn-primary">Расследовать</a>
+                                <span class="badge 
+                                    {% if item.status == 0 %}badge-warning{% endif %}
+                                    {% if item.status == 1 %}badge-success{% endif %}
+                                    {% if item.status == 2 %}badge-error{% endif %}
+                                ">{{ item.get_status_display }}</span>
+                            </td>
+                            <td class="text-sm text-base-content/70">{{ item.note|truncatechars:50 }}</td>
+                            <td>
+
+                                {% if item.status == 0 %}
+                                    <a href="{% url 'pricelens:investigate' pk=item.id %}" class="btn btn-sm btn-primary">
+                                        Расследовать
+                                {% else %}
+                                    <a href="{% url 'pricelens:investigate' pk=item.id %}" class="btn btn-sm btn-outline">
+                                        Подробнее
+                                {% endif %}
+                                </a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center py-4">
-                                <div class="text-base-content/50">Нет открытых расследований.</div>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="text-base-content/50">Нет расследований, соответствующих этому фильтру.</div>
                             </td>
                         </tr>
                         {% endfor %}
