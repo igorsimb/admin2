@@ -3,6 +3,7 @@ import random
 import uuid
 
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 
 
@@ -62,7 +63,7 @@ class QueueView(ListView):
 
         queryset = []
         for i in range(78):  # Create 78 dummy items for pagination
-            event_time = datetime.datetime.now() - datetime.timedelta(hours=i, minutes=random.randint(0, 59))
+            event_time = timezone.now() - datetime.timedelta(hours=i, minutes=random.randint(0, 59))
             queryset.append(
                 {
                     "id": uuid.uuid4(),
@@ -83,7 +84,7 @@ class InvestigationDetailView(TemplateView):
         # Phase 4: Generate a single dummy object for the detail view
         context["investigation"] = {
             "id": kwargs.get("pk"),
-            "event_dt": datetime.datetime.now() - datetime.timedelta(hours=random.randint(1, 24)),
+            "event_dt": timezone.now() - datetime.timedelta(hours=random.randint(1, 24)),
             "supid": random.randint(1000, 9999),
             "error_text": random.choice(["SKU_FORMAT_INVALID", "FILE_READ_ERROR", "PRICE_DEVIATION_HIGH"]),
             "stage": random.choice(["load_mail", "consolidate", "airflow"]),

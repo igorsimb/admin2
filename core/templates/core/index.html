@@ -18,7 +18,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                     </div>
-                    <h2 class="card-title text-lg text-base-content">Cross-dock</h2>
+                    <a href="{% url 'cross_dock:create_task' %}" class="text-current no-underline hover:no-underline"><h2 class="card-title text-lg text-base-content">Cross-dock</h2></a>
                 </div>
                 <div class="divider my-2"></div>
                 <div class="flex flex-col gap-2">
@@ -38,16 +38,26 @@
             </div>
         </div>
 
-        <!-- Coming Soon Section -->
-        <div class="card bg-base-100 shadow-md border-2 border-dashed border-base-300 transition-all duration-300 hover:shadow-lg">
-            <div class="card-body p-6 items-center text-center">
-                <div class="p-3 rounded-full bg-base-200/50 text-base-content/30 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
+        <!-- Pricelens Section -->
+        <div class="card bg-base-100 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.25 border-1 border-base-300">
+            <div class="card-body p-4 md:p-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 rounded-xl bg-info/10 text-info">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <a href="{% url 'pricelens:dashboard' %}" class="text-current no-underline hover:no-underline"><h2 class="card-title text-lg text-base-content">Мониторинг прихода прайс-листов</h2></a>
                 </div>
-                <h3 class="font-medium text-base-content/60">Some cool feature</h3>
-                <p class="text-sm text-base-content/40">Coming soon</p>
+                <div class="divider my-2"></div>
+                <div class="flex flex-col gap-2">
+                    <a href="{% url 'pricelens:dashboard' %}" class="btn btn-ghost btn-sm justify-start gap-2 text-base-content/80 hover:text-info hover:bg-base-200 transition-colors duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                        Перейти к панели
+                    </a>
+                </div>
             </div>
         </div>
     </div>
