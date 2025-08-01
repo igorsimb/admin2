@@ -11,7 +11,9 @@ from common.models import Supplier
 from .models import Investigation, InvestigationStatus
 
 
-def log_investigation_event(event_dt: datetime.datetime, supid: int, reason, stage: str, file_path: str, extra=None):
+def log_investigation_event(
+    event_dt: datetime.datetime, supid: int, reason, stage: str, file_path: str, extra=None
+) -> None:
     """
     Safely logs an investigation event, avoiding duplicates.
     'reason' can be an Enum member or an integer.

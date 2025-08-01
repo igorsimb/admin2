@@ -41,7 +41,7 @@ class TestInvestigationModel:
         """Test that an Investigation instance can be created successfully."""
         investigation = Investigation.objects.create(
             supplier=supplier,
-            event_dt=datetime.datetime.now(datetime.UTC),
+            event_dt=datetime.datetime.now(datetime.timezone.utc),  # noqa
             error_id=1,
             error_text="FILE_READ_ERROR",
             stage="load_mail",
@@ -59,7 +59,7 @@ class TestInvestigationModel:
         """Test that default values are set correctly."""
         investigation = Investigation.objects.create(
             supplier=supplier,
-            event_dt=datetime.datetime.now(datetime.UTC),
+            event_dt=datetime.datetime.now(datetime.timezone.utc),  # noqa
             error_id=1,
             error_text="Default test",
             stage="test",

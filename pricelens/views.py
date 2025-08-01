@@ -77,7 +77,7 @@ class QueueView(generic.ListView):
     context_object_name = "investigations"
 
     def get_queryset(self):
-        queryset = Investigation.objects.all()
+        queryset = Investigation.objects.select_related("supplier").all()
 
         # Filter by status from URL query param. Default to OPEN if no param.
         status_filter = self.request.GET.get("status")

@@ -37,7 +37,7 @@
                             <th>ID Поставщика</th>
                             <th>Имя поставщика</th>
                             <th>Причина ошибки</th>
-                            <th>Этап</th>
+                            {# <th>Этап</th> #}
                             <th>Статус</th>
                             <th>Заметка</th>
                             <th>Действия</th>
@@ -50,9 +50,9 @@
                             <td>{{ item.supplier.supid }}</td>
                             <td>{{ item.supplier.name }}</td>
                             <td><span class="badge badge-ghost">{{ item.error_text }}</span></td>
-                            <td><span class="badge badge-outline">{{ item.stage }}</span></td>
+                            {# <td><span class="badge badge-outline">{{ item.stage }}</span></td> #}
                             <td>
-                                <span class="badge 
+                                <span class="badge
                                     {% if item.status == 0 %}badge-warning{% endif %}
                                     {% if item.status == 1 %}badge-success{% endif %}
                                     {% if item.status == 2 %}badge-error{% endif %}
