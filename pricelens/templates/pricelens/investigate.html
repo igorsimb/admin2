@@ -57,7 +57,7 @@
                     </div>
                     <div class="card-actions justify-start mt-4">
                         <a href="#" class="btn btn-info">Скачать исходный файл</a>
-                        <a href="#" class="btn btn-ghost">Открыть поставщика в админке</a>
+                        <a href="{{ EXTERNAL_DJANGO_ADMIN_URL }}/admin/assignments/sprsupdif/?q={{ investigation.supplier.supid }}" class="btn btn-ghost" target="_blank">Найти поставщика в админке</a>
                     </div>
                 </div>
             </div>
