@@ -54,7 +54,6 @@ services:
       timeout: 3s
       retries: 3
 
-
   frontend-proxy:
     image: nginx:latest
     ports:
@@ -63,6 +62,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - admin2_static_data:/static:ro
       - admin2_media_data:/media:ro
+      - /var/www/failed_files:/var/www/failed_files:ro
     depends_on:
       - admin2-web
 volumes:
