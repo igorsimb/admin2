@@ -14,9 +14,11 @@ from pricelens.models import (
     BucketChoices,
     CadenceDaily,
     CadenceProfile,
+    FailReason,
     Investigation,
     InvestigationStatus,
 )
+from tests.factories import FailReasonFactory
 
 User = get_user_model()
 pytestmark = pytest.mark.django_db
@@ -34,16 +36,21 @@ def supplier():
     return Supplier.objects.create(supid=1234, name="Test Supplier")
 
 
+@pytest.fixture
+def fail_reason():
+    """Provides a FailReason instance for foreign key relations."""
+    return FailReasonFactory()
+
+
 class TestInvestigationModel:
     """Tests for the Investigation model."""
 
-    def test_create_investigation(self, user, supplier):
+    def test_create_investigation(self, user, supplier, fail_reason):
         """Test that an Investigation instance can be created successfully."""
         investigation = Investigation.objects.create(
             supplier=supplier,
+            fail_reason=fail_reason,
             event_dt=datetime.datetime.now(datetime.timezone.utc),  # noqa
-            error_id=1,
-            error_text="FILE_READ_ERROR",
             stage="load_mail",
             file_path="/path/to/file.csv",
             status=InvestigationStatus.OPEN,
@@ -51,17 +58,17 @@ class TestInvestigationModel:
         )
         assert Investigation.objects.count() == 1
         assert investigation.supplier == supplier
+        assert investigation.fail_reason == fail_reason
         assert investigation.status == InvestigationStatus.OPEN
         assert investigation.investigator == user
         assert investigation.created_at is not None
 
-    def test_default_values(self, supplier):
+    def test_default_values(self, supplier, fail_reason):
         """Test that default values are set correctly."""
         investigation = Investigation.objects.create(
             supplier=supplier,
+            fail_reason=fail_reason,
             event_dt=datetime.datetime.now(datetime.timezone.utc),  # noqa
-            error_id=1,
-            error_text="Default test",
             stage="test",
         )
         assert investigation.status == InvestigationStatus.OPEN
@@ -130,3 +137,25 @@ class TestCadenceModels:
         assert profile.bucket == BucketChoices.CONSISTENT
         assert profile.created_at is not None
         assert profile.updated_at is not None
+
+
+class TestFailReasonModel:
+    """Tests for the FailReason model."""
+
+    def test_create_fail_reason(self):
+        """Test that a FailReason instance can be created successfully."""
+        initial_count = FailReason.objects.count()
+        reason = FailReason.objects.create(
+            code="TEST_CODE",
+            name="Test Name",
+            description="Test Description",
+        )
+        assert FailReason.objects.count() == initial_count + 1
+        assert reason.code == "TEST_CODE"
+        assert str(reason) == "Test Name"
+
+    def test_unique_code_constraint(self):
+        """Test that the unique constraint on the code field is enforced."""
+        FailReason.objects.create(code="UNIQUE_CODE", name="Name 1")
+        with pytest.raises(IntegrityError):
+            FailReason.objects.create(code="UNIQUE_CODE", name="Name 2")

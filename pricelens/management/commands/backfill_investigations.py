@@ -3,7 +3,7 @@ from django.db import transaction
 
 from common.models import Supplier
 from common.utils.clickhouse import get_clickhouse_client
-from pricelens.models import Investigation
+from pricelens.models import FailReason, Investigation
 
 
 class Command(BaseCommand):
@@ -12,7 +12,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Starting backfill from ClickHouse...")
 
-        # Get all existing supplier IDs from the database
         supplier_ids = list(Supplier.objects.values_list("supid", flat=True))
         if not supplier_ids:
             self.stderr.write(self.style.ERROR("No suppliers found in the database. Aborting."))
@@ -25,15 +24,11 @@ class Command(BaseCommand):
                     return
 
                 self.stdout.write("Executing ClickHouse query to fetch all historical errors...")
-                # This query is from the blueprint, but modified to fetch ALL historical data
-                # by removing the time constraint.
                 query = """
-                    SELECT e.dt AS event_dt, e.supid, e.error_id,
-                           d.error_text,
-                           'consolidate' AS stage
+                    SELECT e.dt AS event_dt, e.supid, d.error_text
                     FROM sup_stat.dif_errors e
                     LEFT JOIN sup_stat.error_list d ON d.id = e.error_id
-                    WHERE e.supid IN %(supids)s
+                    WHERE e.supid IN %(supids)s AND d.error_text IS NOT NULL
                 """
                 params = {"supids": supplier_ids}
                 rows = client.query_dataframe(query, params=params)
@@ -47,16 +42,20 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("No error records found in ClickHouse. Nothing to backfill."))
             return
 
-        # Convert timezone-naive datetimes from ClickHouse to timezone-aware
         rows["event_dt"] = rows["event_dt"].dt.tz_localize("Europe/Moscow")
 
+        # Get or create FailReason objects
+        unique_error_texts = rows["error_text"].unique()
+        reasons_by_code = {}
+        for code in unique_error_texts:
+            reason, _ = FailReason.objects.get_or_create(code=code, defaults={"name": code, "description": ""})
+            reasons_by_code[code] = reason
+
+        rows["fail_reason_id"] = rows["error_text"].apply(lambda code: reasons_by_code[code].id)
+
         self.stdout.write("Fetching existing investigation records from PostgreSQL to prevent duplicates...")
-
-        # Create a unique identifier for comparison
-        rows["unique_key"] = rows.apply(lambda r: (r["event_dt"], r["supid"], r["error_id"]), axis=1)
-
-        existing_keys = set(Investigation.objects.values_list("event_dt", "supplier_id", "error_id"))
-
+        rows["unique_key"] = rows.apply(lambda r: (r["event_dt"], r["supid"], r["fail_reason_id"]), axis=1)
+        existing_keys = set(Investigation.objects.values_list("event_dt", "supplier_id", "fail_reason_id"))
         self.stdout.write(f"Found {len(existing_keys)} existing records in PostgreSQL.")
 
         new_rows = rows[~rows["unique_key"].isin(existing_keys)]
@@ -67,18 +66,16 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Preparing to insert {len(new_rows)} new investigation records...")
 
-        new_investigations = []
-        for _, row in new_rows.iterrows():
-            new_investigations.append(
-                Investigation(
-                    event_dt=row["event_dt"],
-                    supplier_id=row["supid"],
-                    error_id=row["error_id"],
-                    error_text=row["error_text"] or "Unknown Error",
-                    stage=row["stage"],
-                    file_path="",  # Backfilled events don't have a file path
-                )
+        new_investigations = [
+            Investigation(
+                event_dt=row["event_dt"],
+                supplier_id=row["supid"],
+                fail_reason_id=row["fail_reason_id"],
+                stage="consolidate",
+                file_path="",
             )
+            for _, row in new_rows.iterrows()
+        ]
 
         try:
             with transaction.atomic():

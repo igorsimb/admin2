@@ -42,7 +42,11 @@
                                 </tr>
                                 <tr>
                                     <th>Причина ошибки</th>
-                                    <td><span class="badge badge-error">{{ investigation.error_text }}</span></td>
+                                    <td>
+                                        <div class="tooltip" data-tip="{{ investigation.fail_reason.description }}">
+                                            <span class="badge badge-error">{{ investigation.fail_reason.name }}</span>
+                                        </div>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <th>Этап</th>

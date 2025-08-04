@@ -49,7 +49,7 @@
                             <td>{{ item.event_dt|date:"Y-m-d H:i:s" }}</td>
                             <td>{{ item.supplier.supid }}</td>
                             <td>{{ item.supplier.name }}</td>
-                            <td><span class="badge badge-ghost">{{ item.error_text }}</span></td>
+                            <td><span class="badge badge-ghost">{{ item.fail_reason.name }}</span></td>
                             {# <td><span class="badge badge-outline">{{ item.stage }}</span></td> #}
                             <td>
                                 <span class="badge

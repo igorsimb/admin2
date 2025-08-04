@@ -10,6 +10,6 @@ class LogEventSerializer(serializers.Serializer):
 
     event_dt = serializers.DateTimeField()
     supid = serializers.IntegerField()
-    reason = serializers.IntegerField()
+    reason = serializers.CharField(max_length=100)
     stage = serializers.CharField(max_length=100)
     file_path = serializers.CharField(allow_blank=True)

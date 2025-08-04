@@ -22,12 +22,24 @@ class BucketChoices(models.TextChoices):
     DEAD = "dead", "Мертвые"
 
 
+class FailReason(BaseModel):
+    code = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Внутренний код ошибки, напр. 'FILE_READ_ERROR'",
+    )
+    name = models.CharField(max_length=255, help_text="Удобочитаемое название ошибки, напр. 'Ошибка чтения файла'")
+    description = models.TextField(help_text="Подробное описание ошибки")
+
+    def __str__(self):
+        return self.name
+
+
 class Investigation(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     event_dt = models.DateTimeField(db_index=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
-    error_id = models.PositiveIntegerField(db_index=True)
-    error_text = models.CharField(max_length=128)
+    fail_reason = models.ForeignKey(FailReason, on_delete=models.SET_NULL, null=True, blank=True)
     stage = models.CharField(max_length=32)  # load_mail / load_ftp / consolidate / airflow
     file_path = models.TextField(blank=True, default="")
     status = models.IntegerField(choices=InvestigationStatus.choices, default=InvestigationStatus.OPEN, db_index=True)
