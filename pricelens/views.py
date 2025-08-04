@@ -48,6 +48,7 @@ class DashboardView(generic.TemplateView):
             ordered_buckets.append(
                 {
                     "label": label,
+                    "value": value,
                     "count": bucket_counts_dict.get(value, 0),
                     "tooltip": tooltips.get(value, ""),
                 }
@@ -97,6 +98,29 @@ class QueueView(generic.ListView):
         # Default to '0' (OPEN) for the active button state if not specified
         context["current_status"] = self.request.GET.get("status", str(InvestigationStatus.OPEN))
         # Pass query parameters to the template for pagination
+        context["query_params"] = self.request.GET.urlencode()
+        return context
+
+
+class CadenceView(generic.ListView):
+    model = CadenceProfile
+    template_name = "pricelens/cadence.html"
+    paginate_by = 50
+    context_object_name = "profiles"
+
+    def get_queryset(self):
+        queryset = CadenceProfile.objects.select_related("supplier").all()
+        bucket_filter = self.request.GET.get("bucket")
+
+        if bucket_filter and bucket_filter in BucketChoices.values:
+            queryset = queryset.filter(bucket=bucket_filter)
+
+        return queryset.order_by("days_since_last")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["bucket_choices"] = BucketChoices.choices
+        context["current_bucket"] = self.request.GET.get("bucket", "all")
         context["query_params"] = self.request.GET.urlencode()
         return context
 

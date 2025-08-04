@@ -1,0 +1,107 @@
+{% extends "core/layouts/blank.html" %}
+
+{% block title %}Pricelens: Ритмичность{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4 md:p-6">
+
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Главная</a></li>
+            <li><a href="{% url 'pricelens:dashboard' %}" class="text-primary">Мониторинг прихода прайс-листов</a></li>
+            <li class="text-gray-500">Ритмичность</li>
+        </ul>
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Ритмичность</h1>
+        <div class="tabs tabs-lift">
+            <a href="?bucket=all" class="tab {% if current_bucket == 'all' %}tab-active{% endif %}">Все</a>
+            {% for value, label in bucket_choices %}
+                <a href="?bucket={{ value }}" class="tab {% if current_bucket == value %}tab-active{% endif %}">
+                    <span class="{% if value == 'consistent' %}text-success{% elif value == 'inconsistent' %}text-warning{% elif value == 'dead' %}text-error{% endif %}">
+                        {{ label }}
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body p-4">
+            <div class="overflow-x-auto">
+                <table class="table w-full">
+                    <thead>
+                        <tr class="[&>th]:bg-base-200 [&>th]:text-xs [&>th]:font-medium [&>th]:uppercase [&>th]:tracking-wider [&>th]:py-2 [&>th]:px-3">
+                            <th>ID Поставщика</th>
+                            <th>Имя поставщика</th>
+                            <th>Медиана (дни)</th>
+                            <th>SD (дни)</th>
+                            <th>Дней с последнего прайса</th>
+                            <th>Категория</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for profile in profiles %}
+                        <tr class="hover:bg-base-300">
+                            <td>{{ profile.supplier.supid }}</td>
+                            <td>{{ profile.supplier.name }}</td>
+                            <td>{{ profile.median_gap_days }}</td>
+                            <td>{{ profile.sd_gap|floatformat:2 }}</td>
+                            <td>{{ profile.days_since_last }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if profile.bucket == 'consistent' %}badge-success{% endif %}
+                                    {% if profile.bucket == 'inconsistent' %}badge-warning{% endif %}
+                                    {% if profile.bucket == 'dead' %}badge-error{% endif %}
+                                ">{{ profile.get_bucket_display }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-base-content/50">Нет профилей, соответствующих этому фильтру.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="flex flex-col md:flex-row justify-between items-center mt-4 px-6 py-3 gap-4">
+            <div class="text-sm">
+                Показано с {{ page_obj.start_index }} по {{ page_obj.end_index }} из {{ paginator.count }} записей
+            </div>
+            <div class="join">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1&{{ query_params }}" class="join-item btn btn-sm">Первая</a>
+                    <a href="?page={{ page_obj.previous_page_number }}&{{ query_params }}" class="join-item btn btn-sm">«</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">Первая</button>
+                    <button class="join-item btn btn-sm btn-disabled">«</button>
+                {% endif %}
+
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <a href="?page={{ num }}&{{ query_params }}" class="join-item btn btn-sm btn-active">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}&{{ query_params }}" class="join-item btn btn-sm">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}&{{ query_params }}" class="join-item btn btn-sm">»</a>
+                    <a href="?page={{ paginator.num_pages }}&{{ query_params }}" class="join-item btn btn-sm">Последняя</a>
+                {% else %}
+                    <button class="join-item btn btn-sm btn-disabled">»</button>
+                    <button class="join-item btn btn-sm btn-disabled">Последняя</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
