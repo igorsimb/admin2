@@ -96,6 +96,8 @@ class QueueView(generic.ListView):
         context["status_choices"] = InvestigationStatus.choices
         # Default to '0' (OPEN) for the active button state if not specified
         context["current_status"] = self.request.GET.get("status", str(InvestigationStatus.OPEN))
+        # Pass query parameters to the template for pagination
+        context["query_params"] = self.request.GET.urlencode()
         return context
 
 
