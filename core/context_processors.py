@@ -16,4 +16,5 @@ def environment_settings(request):
     return {
         "environment": settings.DJANGO_ENVIRONMENT,
         "CLICKHOUSE_HOST": settings.CLICKHOUSE_HOST,
+        "EXTERNAL_DJANGO_ADMIN_URL": settings.EXTERNAL_DJANGO_ADMIN_URL,
     }
