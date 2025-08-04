@@ -6,7 +6,22 @@ from factory.django import DjangoModelFactory
 
 from accounts.models import User
 from common.models import Supplier
-from pricelens.models import BucketChoices, CadenceProfile, Investigation, InvestigationStatus
+from pricelens.models import (
+    BucketChoices,
+    CadenceProfile,
+    FailReason,
+    Investigation,
+    InvestigationStatus,
+)
+
+
+class FailReasonFactory(DjangoModelFactory):
+    class Meta:
+        model = FailReason
+
+    code = factory.Sequence(lambda n: f"ERROR_CODE_{n}")
+    name = factory.Faker("sentence")
+    description = factory.Faker("text")
 
 
 class SupplierFactory(DjangoModelFactory):
@@ -31,9 +46,8 @@ class InvestigationFactory(DjangoModelFactory):
         model = Investigation
 
     supplier = factory.SubFactory(SupplierFactory)
+    fail_reason = factory.SubFactory(FailReasonFactory)
     event_dt = factory.Faker("date_time", tzinfo=factory.LazyFunction(lambda: timezone.get_current_timezone()))
-    error_id = factory.Faker("pyint", min_value=1, max_value=100)
-    error_text = factory.Faker("sentence")
     stage = factory.Faker("random_element", elements=["load_mail", "consolidate"])
     status = InvestigationStatus.OPEN
 

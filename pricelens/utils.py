@@ -8,26 +8,26 @@ from django.db import IntegrityError
 
 from common.models import Supplier
 
-from .models import Investigation, InvestigationStatus
+from .models import FailReason, Investigation, InvestigationStatus
 
 
 def log_investigation_event(
-    event_dt: datetime.datetime, supid: int, reason, stage: str, file_path: str, extra=None
+    event_dt: datetime.datetime, supid: int, reason: str, stage: str, file_path: str, extra=None
 ) -> None:
     """
     Safely logs an investigation event, avoiding duplicates.
-    'reason' can be an Enum member or an integer.
+    'reason' is the string code of the FailReason.
     """
     supplier, _ = Supplier.objects.get_or_create(supid=supid, defaults={"name": f"Supplier {supid}"})
+    fail_reason, _ = FailReason.objects.get_or_create(code=reason, defaults={"name": reason, "description": ""})
 
     try:
         # Use get_or_create for atomicity and to prevent race conditions
         Investigation.objects.get_or_create(
             supplier=supplier,
             event_dt=event_dt,
-            error_id=reason.value if hasattr(reason, "value") else int(reason),
+            fail_reason=fail_reason,
             defaults={
-                "error_text": reason.name if hasattr(reason, "name") else str(reason),
                 "stage": stage,
                 "file_path": file_path,
                 "status": InvestigationStatus.OPEN,

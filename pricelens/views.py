@@ -17,7 +17,7 @@ class DashboardView(generic.TemplateView):
             status=InvestigationStatus.OPEN,
             event_dt__date=timezone.now().date() - datetime.timedelta(days=1),
         )
-        top = yesterday_open.values("error_text").annotate(cnt=Count("id")).order_by("-cnt")[:5]
+        top = yesterday_open.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
         # Get counts for each status
         status_counts = Investigation.objects.values("status").annotate(cnt=Count("id")).order_by("status")
@@ -78,7 +78,7 @@ class QueueView(generic.ListView):
     context_object_name = "investigations"
 
     def get_queryset(self):
-        queryset = Investigation.objects.select_related("supplier").all()
+        queryset = Investigation.objects.select_related("supplier", "fail_reason").all()
 
         # Filter by status from URL query param. Default to OPEN if no param.
         status_filter = self.request.GET.get("status")

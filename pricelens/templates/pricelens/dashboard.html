@@ -48,7 +48,7 @@
         <div class="md:col-span-1">
             <div class="card bg-base-100 shadow-xl h-full">
                 <div class="card-body">
-                    <h2 class="card-title">Топ 5 причин ошибок</h2>
+                    <h2 class="card-title">Топ 5 причин ошибок за вчера</h2>
                     <div class="overflow-x-auto">
                         <table class="table w-full">
                             <thead>
@@ -60,7 +60,7 @@
                             <tbody>
                             {% for reason in top_reasons %}
                                 <tr>
-                                    <td><span class="badge badge-ghost">{{ reason.error_text }}</span></td>
+                                    <td><span class="badge badge-ghost">{{ reason.fail_reason__name }}</span></td>
                                     <td>{{ reason.cnt }}</td>
                                 </tr>
                             {% endfor %}
@@ -68,7 +68,7 @@
                         </table>
                     </div>
                     <div class="card-actions justify-end mt-4">
-                        <a href="{% url 'pricelens:queue' %}" class="btn btn-primary btn-sm">Вся очередь &rarr;</a>
+                        <a href="{% url 'pricelens:queue' %}" class="btn btn-primary btn-sm">Расследовать ошибки &rarr;</a>
                     </div>
                 </div>
             </div>

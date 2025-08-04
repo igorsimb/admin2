@@ -42,7 +42,7 @@ class TestLogEventAPI:
         data = {
             "event_dt": datetime.datetime.now(datetime.UTC).isoformat(),
             "supid": supplier.supid,
-            "reason": 101,
+            "reason": "FILE_READ_ERROR",
             "stage": "load_mail",
             "file_path": "/path/to/file.csv",
         }
