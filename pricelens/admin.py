@@ -1,6 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.utils import timezone
 
-from .models import CadenceProfile, Investigation
+from .models import CadenceProfile, Investigation, InvestigationStatus
 
 
 @admin.register(Investigation)
@@ -19,6 +20,33 @@ class InvestigationAdmin(admin.ModelAdmin):
     search_help_text = "supid, supplier name, error_text, note, username"
     readonly_fields = ("created_at", "investigated_at")
     list_per_page = 50
+    actions = ["mark_resolved", "mark_open"]
+
+    @admin.action(description="Mark selected investigations as Resolved")
+    def mark_resolved(self, request, queryset):
+        updated_count = queryset.update(
+            status=InvestigationStatus.RESOLVED,
+            investigator=request.user,
+            investigated_at=timezone.now(),
+        )
+        self.message_user(
+            request,
+            f"{updated_count} investigations were successfully marked as resolved.",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="Mark selected investigations as Open")
+    def mark_open(self, request, queryset):
+        updated_count = queryset.update(
+            status=InvestigationStatus.OPEN,
+            investigator=None,
+            investigated_at=None,
+        )
+        self.message_user(
+            request,
+            f"{updated_count} investigations were successfully marked as open.",
+            messages.SUCCESS,
+        )
 
 
 @admin.register(CadenceProfile)
