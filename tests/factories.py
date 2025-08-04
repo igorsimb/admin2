@@ -1,10 +1,12 @@
+import datetime
+
 import factory
 from django.utils import timezone
 from factory.django import DjangoModelFactory
 
 from accounts.models import User
 from common.models import Supplier
-from pricelens.models import Investigation, InvestigationStatus
+from pricelens.models import BucketChoices, CadenceProfile, Investigation, InvestigationStatus
 
 
 class SupplierFactory(DjangoModelFactory):
@@ -34,6 +36,20 @@ class InvestigationFactory(DjangoModelFactory):
     error_text = factory.Faker("sentence")
     stage = factory.Faker("random_element", elements=["load_mail", "consolidate"])
     status = InvestigationStatus.OPEN
+
+
+class CadenceProfileFactory(DjangoModelFactory):
+    class Meta:
+        model = CadenceProfile
+
+    supplier = factory.SubFactory(SupplierFactory)
+    median_gap_days = factory.Faker("pyint", min_value=1, max_value=30)
+    sd_gap = factory.Faker("pyfloat", left_digits=2, right_digits=2, positive=True)
+    days_since_last = factory.Faker("pyint", min_value=0, max_value=100)
+    last_success_date = factory.LazyAttribute(
+        lambda o: timezone.now().date() - datetime.timedelta(days=o.days_since_last)
+    )
+    bucket = factory.Faker("random_element", elements=BucketChoices.values)
 
 
 class SupplierDataFactory(factory.Factory):

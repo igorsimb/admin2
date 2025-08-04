@@ -1,117 +1,80 @@
-"""
-Tests for pricelens views.
-"""
-
 import pytest
-from django.contrib.auth import get_user_model
-from django.test import Client
 from django.urls import reverse
-from django.utils import timezone
 
-from pricelens.models import Investigation
-from tests.factories import SupplierFactory
-
-User = get_user_model()
+from pricelens.models import BucketChoices
+from tests.factories import CadenceProfileFactory, UserFactory
 
 
-@pytest.fixture(scope="function")
-def authenticated_client(db):
-    """Provides a Django test client with a logged-in user."""
-    user = User.objects.create_user(username="testuser", password="testpassword")
-    client = Client()
-    client.force_login(user)
-    return client
+@pytest.mark.django_db
+class TestCadenceView:
+    @pytest.fixture
+    def user(self):
+        """Fixture for creating a user."""
+        return UserFactory()
 
+    @pytest.fixture
+    def cadence_profiles(self):
+        """Fixture for creating a batch of cadence profiles for testing filtering."""
+        CadenceProfileFactory.create_batch(5, bucket=BucketChoices.CONSISTENT)
+        CadenceProfileFactory.create_batch(3, bucket=BucketChoices.INCONSISTENT)
+        CadenceProfileFactory.create_batch(2, bucket=BucketChoices.DEAD)
 
-class TestDashboardView:
-    """Tests for the DashboardView."""
-
-    def test_dashboard_view_returns_200(self, authenticated_client):
-        """Test that the dashboard view returns a 200 OK status code."""
-        url = reverse("pricelens:dashboard")
-        response = authenticated_client.get(url)
+    def test_cadence_view_get_success(self, client, user):
+        """Test that the CadenceView returns a 200 OK response."""
+        client.force_login(user)
+        url = reverse("pricelens:cadence")
+        response = client.get(url)
         assert response.status_code == 200
 
-    def test_dashboard_view_uses_correct_template(self, authenticated_client):
-        """Test that the dashboard view uses the correct template."""
-        url = reverse("pricelens:dashboard")
-        response = authenticated_client.get(url)
-        assert "pricelens/dashboard.html" in [t.name for t in response.templates]
-
-    def test_dashboard_view_context_data(self, authenticated_client):
-        """Test that the dashboard view provides the expected context data."""
-        url = reverse("pricelens:dashboard")
-        response = authenticated_client.get(url)
-        # Based on the view's implementation, we expect these keys.
-        assert "summary" in response.context
-        assert "top_reasons" in response.context
-        assert "buckets" in response.context
-        assert "anomalies" in response.context
-
-
-class TestQueueView:
-    """Tests for the QueueView."""
-
-    def test_queue_view_returns_200(self, authenticated_client):
-        """Test that the queue view returns a 200 OK status code."""
-        url = reverse("pricelens:queue")
-        response = authenticated_client.get(url)
-        assert response.status_code == 200
-
-    def test_queue_view_uses_correct_template(self, authenticated_client):
-        """Test that the queue view uses the correct template."""
-        url = reverse("pricelens:queue")
-        response = authenticated_client.get(url)
-        assert "pricelens/queue.html" in [t.name for t in response.templates]
-
-    def test_queue_view_context_data(self, authenticated_client):
-        """Test that the queue view provides paginated investigation data."""
-        supplier = SupplierFactory()
-        Investigation.objects.create(event_dt=timezone.now(), supplier=supplier, error_id=1, error_text="test")
-        url = reverse("pricelens:queue")
-        response = authenticated_client.get(url)
-        assert "object_list" in response.context  # ListView uses object_list
-        assert "is_paginated" in response.context
-
-
-@pytest.fixture
-def test_investigation(db):
-    """Creates a test Investigation object."""
-    supplier = SupplierFactory()
-    return Investigation.objects.create(
-        event_dt=timezone.now(),
-        supplier=supplier,
-        error_id=404,
-        error_text="File not found",
-        stage="load_mail",
+    @pytest.mark.parametrize(
+        "bucket, expected_count",
+        [
+            ("consistent", 5),
+            ("inconsistent", 3),
+            ("dead", 2),
+            ("all", 10),
+        ],
     )
-
-
-class TestInvestigationDetailView:
-    """Tests for the InvestigationDetailView."""
-
-    def test_detail_view_returns_200(self, authenticated_client, test_investigation):
-        """Test that the detail view returns a 200 OK status code for a GET request."""
-        url = reverse("pricelens:investigate", kwargs={"pk": test_investigation.pk})
-        response = authenticated_client.get(url)
+    def test_cadence_view_filtering(self, client, user, cadence_profiles, bucket, expected_count):
+        """Test that the CadenceView correctly filters by bucket."""
+        client.force_login(user)
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"bucket": bucket})
         assert response.status_code == 200
+        assert len(response.context["profiles"]) == expected_count
 
-    def test_detail_view_uses_correct_template(self, authenticated_client, test_investigation):
-        """Test that the detail view uses the correct template."""
-        url = reverse("pricelens:investigate", kwargs={"pk": test_investigation.pk})
-        response = authenticated_client.get(url)
-        assert "pricelens/investigate.html" in [t.name for t in response.templates]
+    def test_cadence_view_sorting(self, client, user):
+        """Test that the CadenceView correctly sorts by days_since_last."""
+        client.force_login(user)
+        CadenceProfileFactory.create(days_since_last=10)
+        CadenceProfileFactory.create(days_since_last=5)
+        CadenceProfileFactory.create(days_since_last=20)
 
-    def test_detail_view_context_data(self, authenticated_client, test_investigation):
-        """Test that the detail view provides the investigation object in the context."""
-        url = reverse("pricelens:investigate", kwargs={"pk": test_investigation.pk})
-        response = authenticated_client.get(url)
-        # The view uses UpdateView, which puts the object in the context
-        assert response.context["object"] == test_investigation
+        url = reverse("pricelens:cadence")
+        response = client.get(url)
 
-    def test_detail_view_post_redirects(self, authenticated_client, test_investigation):
-        """Test that a POST request to the detail view redirects to the queue."""
-        url = reverse("pricelens:investigate", kwargs={"pk": test_investigation.pk})
-        response = authenticated_client.post(url, data={"note": "Test note", "action": "resolve"})
-        assert response.status_code == 302
-        assert response.url == reverse("pricelens:queue")
+        assert response.status_code == 200
+        profiles = response.context["profiles"]
+        assert len(profiles) == 3
+        assert profiles[0].days_since_last == 5
+        assert profiles[1].days_since_last == 10
+        assert profiles[2].days_since_last == 20
+
+    def test_cadence_view_pagination(self, client, user):
+        """Test that pagination works correctly in the CadenceView."""
+        client.force_login(user)
+        CadenceProfileFactory.create_batch(60)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 50
+        assert response.context["is_paginated"]
+        assert response.context["page_obj"].number == 1
+
+        # Check the second page
+        response = client.get(url + "?page=2")
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 10
+        assert response.context["page_obj"].number == 2

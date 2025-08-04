@@ -82,7 +82,8 @@
                 <div class="lg:col-span-1">
                     <div class="card bg-base-100 shadow-xl h-full">
                         <div class="card-body">
-                            <h2 class="card-title">Ритмичность
+                            <h2 class="card-title">
+                                <a href="{% url 'pricelens:cadence' %}?bucket=all" class="link link-hover">Ритмичность</a>
                                 <label for="cadence-explanation-drawer"
                                        class="drawer-button btn btn-xs btn-ghost btn-circle">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -95,13 +96,15 @@
                             <div class="stats stats-vertical">
                                 {% for bucket in buckets %}
                                     <div class="stat">
-                                        <div
-                                                class="stat-title"
-                                                style="text-decoration: underline dotted;cursor:help; text-underline-offset: 3px;"
-                                                title="{{ bucket.tooltip }}">
-                                            {{ bucket.label }}
+                                        <div class="stat-title">
+                                            <a href="{% url 'pricelens:cadence' %}?bucket={{ bucket.value }}" class="link link-hover"
+                                               title="{{ bucket.tooltip }}" style="text-decoration: underline dotted;cursor:help; text-underline-offset: 3px;">
+                                                {{ bucket.label }}
+                                            </a>
                                         </div>
-                                        <div class="stat-value">{{ bucket.count }}</div>
+                                        <div class="stat-value">
+                                            <a href="{% url 'pricelens:cadence' %}?bucket={{ bucket.value }}" class="link link-hover">{{ bucket.count }}</a>
+                                        </div>
                                     </div>
                                 {% endfor %}
                             </div>
