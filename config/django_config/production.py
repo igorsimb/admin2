@@ -9,7 +9,8 @@ import os
 
 from .base import *  # noqa
 
-env.read_env(BASE_DIR / ".env.prod")
+# env.read_env(BASE_DIR / ".env.prod")
+env.read_env(os.path.join(BASE_DIR, ".env.prod"))
 
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
