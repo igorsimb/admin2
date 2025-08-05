@@ -27,6 +27,16 @@
         </div>
     </div>
 
+    <!-- Investigation Stats -->
+    <div class="stats shadow w-full mb-6">
+        {% for stat in investigation_stats %}
+            <div class="stat">
+                <div class="stat-title">{{ stat.label }}</div>
+                <div class="stat-value"><a href="{% url 'pricelens:queue' %}?status={{ stat.value }}">{{ stat.count }}</a></div>
+            </div>
+        {% endfor %}
+    </div>
+
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-4">
             <div class="overflow-x-auto">
@@ -91,8 +101,8 @@
             </div>
             <div class="join">
                 {% if page_obj.has_previous %}
-                    <a href="?page=1&{{ query_params }}" class="join-item btn btn-sm">Первая</a>
-                    <a href="?page={{ page_obj.previous_page_number }}&{{ query_params }}" class="join-item btn btn-sm">«</a>
+                    <a href="?page=1{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm">Первая</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm">«</a>
                 {% else %}
                     <button class="join-item btn btn-sm btn-disabled">Первая</button>
                     <button class="join-item btn btn-sm btn-disabled">«</button>
@@ -100,15 +110,15 @@
 
                 {% for num in paginator.page_range %}
                     {% if page_obj.number == num %}
-                        <a href="?page={{ num }}&{{ query_params }}" class="join-item btn btn-sm btn-active">{{ num }}</a>
+                        <a href="?page={{ num }}{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm btn-active">{{ num }}</a>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <a href="?page={{ num }}&{{ query_params }}" class="join-item btn btn-sm">{{ num }}</a>
+                        <a href="?page={{ num }}{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm">{{ num }}</a>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}&{{ query_params }}" class="join-item btn btn-sm">»</a>
-                    <a href="?page={{ paginator.num_pages }}&{{ query_params }}" class="join-item btn btn-sm">Последняя</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm">»</a>
+                    <a href="?page={{ paginator.num_pages }}{% if query_params %}&amp;{{ query_params }}{% endif %}" class="join-item btn btn-sm">Последняя</a>
                 {% else %}
                     <button class="join-item btn btn-sm btn-disabled">»</button>
                     <button class="join-item btn btn-sm btn-disabled">Последняя</button>

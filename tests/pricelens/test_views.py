@@ -27,7 +27,6 @@ class TestDashboardView:
         assert "top_reasons" in response.context
         assert "buckets" in response.context
         assert "anomalies" in response.context
-        assert "investigation_stats" in response.context
 
 
 @pytest.mark.django_db

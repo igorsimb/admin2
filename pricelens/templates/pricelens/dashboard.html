@@ -25,21 +25,10 @@
                           d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <div class="stat-title">Ошибки за вчера</div>
+            <div class="stat-title">Ошибки за последние 24 часа</div>
             <div class="stat-value text-error">{{ summary.failures }}</div>
             <div class="stat-desc">У {{ summary.suppliers }} поставщиков</div>
         </div>
-
-        <!-- New Investigation Status Stats -->
-        {% for stat in investigation_stats %}
-            <div class="stat">
-                <div class="stat-title">{{ stat.label }}</div>
-                <div class="stat-value"><a
-                        href="{% url 'pricelens:queue' %}?status={{ stat.value }}">{{ stat.count }}</a></div>
-                <div class="stat-desc"><a href="{% url 'pricelens:queue' %}?status={{ stat.value }}"
-                                          class="link link-hover">Посмотреть</a></div>
-            </div>
-        {% endfor %}
     </div>
     <!-- End of Phase 1 -->
 
@@ -48,7 +37,7 @@
         <div class="md:col-span-1">
             <div class="card bg-base-100 shadow-xl h-full">
                 <div class="card-body">
-                    <h2 class="card-title">Топ 5 причин ошибок за вчера</h2>
+                    <h2 class="card-title">Топ 5 причин ошибок за 24 часа</h2>
                     <div class="overflow-x-auto">
                         <table class="table w-full">
                             <thead>

@@ -13,27 +13,11 @@ class DashboardView(generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        yesterday_open = Investigation.objects.filter(
-            status=InvestigationStatus.OPEN,
-            event_dt__date=timezone.now().date() - datetime.timedelta(days=1),
-        )
-        top = yesterday_open.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
-        # Get counts for each status
-        status_counts = Investigation.objects.values("status").annotate(cnt=Count("id")).order_by("status")
-        status_counts_dict = {s["status"]: s["cnt"] for s in status_counts}
+        time_threshold = timezone.now() - datetime.timedelta(hours=24)
+        recent_investigations = Investigation.objects.filter(event_dt__gte=time_threshold)
+        top_reasons = recent_investigations.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
-        investigation_stats = []
-        for value, label in InvestigationStatus.choices:
-            investigation_stats.append(
-                {
-                    "label": label.capitalize(),
-                    "value": value,
-                    "count": status_counts_dict.get(value, 0),
-                }
-            )
-
-        # Get counts for each bucket
         bucket_counts = CadenceProfile.objects.values("bucket").annotate(cnt=Count("supplier"))
         bucket_counts_dict = {b["bucket"]: b["cnt"] for b in bucket_counts}
 
@@ -57,11 +41,10 @@ class DashboardView(generic.TemplateView):
         ctx.update(
             {
                 "summary": {
-                    "failures": yesterday_open.count(),
-                    "suppliers": yesterday_open.values("supplier").distinct().count(),
+                    "failures": recent_investigations.count(),
+                    "suppliers": recent_investigations.values("supplier").distinct().count(),
                 },
-                "top_reasons": list(top),
-                "investigation_stats": investigation_stats,
+                "top_reasons": list(top_reasons),
                 "buckets": ordered_buckets,
                 "anomalies": CadenceProfile.objects.exclude(bucket=BucketChoices.DEAD)
                 .filter(days_since_last__gt=F("median_gap_days") * 2)
@@ -93,12 +76,31 @@ class QueueView(generic.ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Pass the status choices and the current filter to the template
+
+        # Get counts for each status for the stats widget
+        status_counts = Investigation.objects.values("status").annotate(cnt=Count("id")).order_by("status")
+        status_counts_dict = {s["status"]: s["cnt"] for s in status_counts}
+
+        investigation_stats = []
+        for value, label in InvestigationStatus.choices:
+            investigation_stats.append(
+                {
+                    "label": label.capitalize(),
+                    "value": value,
+                    "count": status_counts_dict.get(value, 0),
+                }
+            )
+        context["investigation_stats"] = investigation_stats
+
         context["status_choices"] = InvestigationStatus.choices
-        # Default to '0' (OPEN) for the active button state if not specified
         context["current_status"] = self.request.GET.get("status", str(InvestigationStatus.OPEN))
-        # Pass query parameters to the template for pagination
-        context["query_params"] = self.request.GET.urlencode()
+        
+        # Create a copy of the GET parameters and remove the 'page' key for pagination links
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context["query_params"] = query_params.urlencode()
+        
         return context
 
 
