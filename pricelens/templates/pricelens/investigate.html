@@ -61,7 +61,7 @@
                     </div>
                     <div class="card-actions justify-start mt-4">
                         {% if investigation.get_download_url %}
-                            <a href="{{ investigation.get_download_url }}" class="btn btn-info" target="_blank">Скачать исходный файл</a>
+                            <a href="{{ investigation.get_download_url }}" class="btn btn-info">Скачать исходный файл</a>
                         {% endif %}
                         <a href="{{ EXTERNAL_DJANGO_ADMIN_URL }}/admin/assignments/sprsupdif/?q={{ investigation.supplier.supid }}" class="btn btn-ghost" target="_blank">Найти поставщика в админке</a>
                     </div>
