@@ -45,7 +45,7 @@ ENV PYTHONUNBUFFERED=1
 # Expose the application port
 EXPOSE 8061
 
-CMD ["sh", "-c", "\n    export DJANGO_SETTINGS_MODULE=config.django_config.production && \n    python manage.py collectstatic --noinput && \n    python manage.py migrate --noinput && \n    python -m gunicorn config.wsgi:application \n        --bind 0.0.0.0:8000 \n        --workers 6 \n        --threads 4 \n        --worker-class gthread \n        --timeout 120"]
+CMD ["sh", "-c", "export DJANGO_SETTINGS_MODULE=config.django_config.production && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python -m gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 6 --threads 4 --worker-class gthread --timeout 120"]
 
 
 ## Make entry file executable
