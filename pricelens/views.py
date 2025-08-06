@@ -14,9 +14,9 @@ class DashboardView(generic.TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
-        time_threshold = timezone.now() - datetime.timedelta(hours=24)
-        recent_investigations = Investigation.objects.filter(event_dt__gte=time_threshold)
-        top_reasons = recent_investigations.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
+        yesterday = timezone.now().date() - datetime.timedelta(days=1)
+        yesterdays_investigations = Investigation.objects.filter(event_dt__date=yesterday)
+        top_reasons = yesterdays_investigations.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
         bucket_counts = CadenceProfile.objects.values("bucket").annotate(cnt=Count("supplier"))
         bucket_counts_dict = {b["bucket"]: b["cnt"] for b in bucket_counts}
@@ -41,8 +41,8 @@ class DashboardView(generic.TemplateView):
         ctx.update(
             {
                 "summary": {
-                    "failures": recent_investigations.count(),
-                    "suppliers": recent_investigations.values("supplier").distinct().count(),
+                    "failures": yesterdays_investigations.count(),
+                    "suppliers": yesterdays_investigations.values("supplier").distinct().count(),
                 },
                 "top_reasons": list(top_reasons),
                 "buckets": ordered_buckets,
