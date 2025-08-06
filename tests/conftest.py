@@ -32,6 +32,14 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
+def _override_celery_settings_for_tests(settings):
+    """Force Celery to run synchronously in tests and use a local backend."""
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_BROKER_URL = "memory://"
+    settings.CELERY_RESULT_BACKEND = "django-db"
+
+
+@pytest.fixture(autouse=True)
 # using aaa in name to make sure this fixture always runs first due to some alphabetical order in certain cases
 def aaa_db(db):
     pass
