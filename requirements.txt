@@ -12,6 +12,7 @@ billiard==4.2.1
 celery==5.5.3
     # via
     #   admin2 (pyproject.toml)
+    #   django-celery-beat
     #   django-celery-results
 click==8.2.1
     # via
@@ -29,16 +30,22 @@ clickhouse-driver==0.2.9
     # via admin2 (pyproject.toml)
 colorama==0.4.6
     # via click
+cron-descriptor==1.4.5
+    # via django-celery-beat
 django==5.2.3
     # via
     #   admin2 (pyproject.toml)
     #   django-allauth
+    #   django-celery-beat
     #   django-celery-results
     #   django-filter
     #   django-htmx
     #   django-template-partials
+    #   django-timezone-field
     #   djangorestframework
 django-allauth==65.9.0
+    # via admin2 (pyproject.toml)
+django-celery-beat==2.8.1
     # via admin2 (pyproject.toml)
 django-celery-results==2.6.0
     # via admin2 (pyproject.toml)
@@ -52,6 +59,8 @@ django-htmx==1.23.0
     # via admin2 (pyproject.toml)
 django-template-partials==24.4
     # via admin2 (pyproject.toml)
+django-timezone-field==7.1
+    # via django-celery-beat
 django-widget-tweaks==1.5.0
     # via admin2 (pyproject.toml)
 djangorestframework==3.16.0
@@ -90,6 +99,8 @@ psycopg-binary==3.2.9
     # via psycopg
 psycopg-pool==3.2.6
     # via psycopg
+python-crontab==3.3.0
+    # via django-celery-beat
 python-dateutil==2.9.0.post0
     # via
     #   celery
@@ -111,6 +122,7 @@ typing-extensions==4.14.0
 tzdata==2025.2
     # via
     #   django
+    #   django-celery-beat
     #   kombu
     #   pandas
     #   psycopg

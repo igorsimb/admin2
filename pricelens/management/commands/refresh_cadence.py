@@ -14,6 +14,16 @@ BAD_GAP_PERCENTAGE_THRESHOLD: float = 20.0
 
 
 class Command(BaseCommand):
+    """
+    Refreshes supplier cadence profiles from ClickHouse.
+
+    This command mirrors the logic in the Celery task `pricelens.tasks.refresh_cadence_profiles_task`.
+    It is intended for manual execution to refresh the cadence data on demand, outside of the
+    regularly scheduled Celery task.
+
+    Usage:
+        python manage.py refresh_cadence
+    """
     help = "Refreshes supplier cadence profiles from ClickHouse."
 
     def handle(self, *args, **options):

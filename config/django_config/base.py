@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    "django_celery_beat",
     "django_celery_results",
     "rest_framework",
     "rest_framework.authtoken",

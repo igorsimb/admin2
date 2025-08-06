@@ -7,6 +7,16 @@ from pricelens.models import FailReason, Investigation
 
 
 class Command(BaseCommand):
+    """
+    One-time backfill of historical errors from ClickHouse into the Pricelens Investigation table.
+
+    This command mirrors the logic in the Celery task `pricelens.tasks.backfill_investigations_task`.
+    It serves as a safety net to capture any investigation events that might have been missed
+    by the real-time API. It is idempotent and can be run safely multiple times.
+
+    Usage:
+        python manage.py backfill_investigations
+    """
     help = "One-time backfill of historical errors from ClickHouse into the Pricelens Investigation table."
 
     def handle(self, *args, **options):
