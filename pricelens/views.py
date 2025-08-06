@@ -123,7 +123,13 @@ class CadenceView(generic.ListView):
         context = super().get_context_data(**kwargs)
         context["bucket_choices"] = BucketChoices.choices
         context["current_bucket"] = self.request.GET.get("bucket", "all")
-        context["query_params"] = self.request.GET.urlencode()
+
+        # Create a copy of the GET parameters and remove the 'page' key for pagination links
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context["query_params"] = query_params.urlencode()
+
         return context
 
 
