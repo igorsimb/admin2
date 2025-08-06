@@ -42,6 +42,20 @@ services:
       redis:
         condition: service_healthy
 
+  celery-beat:
+    build: .
+    command: celery -A config.third_party_config.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.prod
+    volumes:
+      - admin2_static_data:/app/staticfiles
+      - admin2_media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   redis:
     image: redis:alpine
     ports:

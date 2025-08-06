@@ -1,5 +1,12 @@
 """
 Management command to backfill supplier data from ClickHouse.
+
+This command mirrors the logic in the Celery task `pricelens.tasks.backfill_suppliers_task`.
+It is intended for manual execution in cases where the supplier data in the main
+Postgres database needs to be repopulated or synced off the regular Celery schedule.
+
+Usage:
+    python manage.py backfill_suppliers
 """
 
 from django.core.management.base import BaseCommand
