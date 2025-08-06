@@ -1,37 +1,44 @@
 # Pricelens: Техническая документация
 
-> **Версия:** 0.2 (Реализована модель FailReason и рефакторинг ошибок)
-> **Последнее обновление:** 4 августа 2025 г.
+> **Версия:** 1.0 (Завершенный MVP)
+> **Последнее обновление:** 6 августа 2025 г.
 
 Этот документ описывает техническую реализацию и архитектуру модуля `pricelens`.
 
 ## 1. Назначение модуля
 
-`Pricelens` — это система мониторинга контура загрузки прайс-листов. Ее задача — отслеживать, агрегировать и предоставлять интерфейс для расследования ошибок, возникающих на различных этапах пайплайна (получение почты, загрузка с FTP, консолидация данных).
+`Pricelens` — это система мониторинга контура загрузки прайс-листов. Ее задача — отслеживать, агрегировать и предоставлять интерфейс для расследования ошибок, возникающих на различных этапах пайплайна, а также анализировать ритмичность поставок от поставщиков.
 
 ## 2. Архитектура и поток данных
 
 ```mermaid
 flowchart TD
-    subgraph Внешние сервисы
-        direction LR
-        S1["load_mail"] --> |HTTP POST| API
-        S2["load_ftp"] --> |HTTP POST| API
-        S3["consolidate"] --> |HTTP POST| API
+    subgraph Suppliers
+        S1["Supplier emails / FTP uploads"]
     end
 
-    subgraph admin2 (Django)
-        API["/api/v1/pricelens/log_event/"] -->|вызов| Utils["utils.log_investigation_event()"]
-        Utils -->|запись| DB[(Postgres: pricelens_investigation, pricelens_failreason)]
+    S1 -->|file| Robot["mail/ftp robot<br>+ consolidate_api"]
+    Robot -->|success .csv| DailyStore["/root/daily_consolidation/…/consolidate.csv/"]
+    Robot -->|HTTP POST| API["/api/v1/pricelens/log_event/"]
+    Robot -->|raw data| CHLoad["Airflow DAG 23:50 MSK"]
+    CHLoad -->|insert| CH["ClickHouse dif_step_1"]
+
+    subgraph "admin2 (Django + Celery)"
+        API -->|вызов| Utils["utils.log_investigation_event()"]
+        Utils -->|запись| PG[(Postgres: pricelens_*)]
         
         subgraph "Pricelens UI"
             direction TB
-            Views["Django Views (pricelens.views)"]
+            Views["Django Views"]
             Templates["Шаблоны (DaisyUI)"]
         end
 
-        DB -->|чтение| Views
+        CeleryTasks["Celery Beat (Scheduled Tasks)"]
+
+        PG -->|чтение| Views
         Views --> Templates
+        CH -->|чтение| CeleryTasks
+        CeleryTasks -->|запись| PG
     end
 
     subgraph Пользователь
@@ -111,9 +118,9 @@ flowchart TD
 - **Cadence (`/pricelens/cadence/`):** Страница для просмотра ритмичности поставщиков с фильтрацией по категориям.
 - **Investigate (`/pricelens/investigate/<id>/`):** Детальная страница для одного расследования с формой для добавления заметок и смены статуса.
 
-## 5. API (`pricelens/api.py`)
+## 5. API и Сериализаторы
 
-Для приема событий из внешних сервисов реализован REST API endpoint.
+Для приема событий из внешних сервисов реализован REST API endpoint, который использует специальный сериализатор для валидации данных.
 
 ### 5.1 `POST /api/v1/pricelens/log_event/`
 
@@ -131,17 +138,32 @@ flowchart TD
 }
 ```
 
-- **Ответы:**
-    - `201 Created`: Событие успешно зарегистрировано.
-    - `400 Bad Request`: Ошибка валидации данных (неверный формат, отсутствуют обязательные поля).
-    - `401 Unauthorized`: Неверный или отсутствующий токен аутентификации.
-
-## 6. Сериализаторы (`pricelens/serializers.py`)
-
-Для валидации входящих данных API используется `LogEventSerializer`.
+### 5.2 `pricelens.serializers.LogEventSerializer`
 
 - **Класс:** `serializers.Serializer` (не `ModelSerializer`).
 - **Обоснование выбора:**
     1.  **Разделение контрактов:** API принимает данные в одном формате (DTO - Data Transfer Object), а модель `Investigation` хранит их в другом. Сериализатор выступает в роли четкого контракта для API, не привязанного к структуре БД.
     2.  **Трансформация данных:** Входящее поле `reason` (строковый код ошибки) используется для поиска или создания соответствующего объекта `FailReason` в базе данных. `Serializer` позволяет гибко управлять этой логикой в представлении (`view`) или утилите (`utils`).
-    3.  **Поля, генерируемые сервером:** Такие поля, как `status`, `created_at` и `id`, устанавливаются сервером и не должны приниматься от клиента. `Serializer` упрощает эту логику по сравнению с `ModelSerializer`, где эти поля пришлось бы явно помечать как `read_only`.
+    3.  **Поля, генерируемые сервером:** Такие поля, как `status`, `created_at` и `id`, устанавливаются сервером и не должны приниматься от клиента. `Serializer` упрощает эту логику.
+
+## 6. Автоматизированные фоновые задачи (Celery)
+
+Для полной автоматизации сбора и анализа данных в `pricelens` используются асинхронные задачи, выполняемые по расписанию с помощью Celery Beat.
+
+- **Расположение:** `pricelens/tasks.py`
+- **Расписание:** `config/third_party_config/celery.py`
+
+### 6.1 `backfill_suppliers_task`
+
+- **Назначение:** Синхронизирует список поставщиков между ClickHouse и основной базой данных Postgres.
+- **Расписание:** Еженедельно, по понедельникам в 05:00 МСК.
+
+### 6.2 `refresh_cadence_profiles_task`
+
+- **Назначение:** Основная аналитическая задача. Выполняет ресурсоемкий запрос к ClickHouse для анализа данных за последние 180 дней, рассчитывает метрики ритмичности (`median_gap`, `sd_gap`) и обновляет `CadenceProfile` для каждого поставщика, присваивая ему соответствующий бакет (`consistent`, `inconsistent`, `dead`).
+- **Расписание:** Ежедневно, в 06:30 МСК.
+
+### 6.3 `backfill_investigations_task`
+
+- **Назначение:** Задача-страховка. Ежедневно проверяет ClickHouse на наличие событий ошибок за прошедший день, которые могли быть пропущены API (например, из-за сбоя сети). Гарантирует полноту данных в очереди расследований. Задача идемпотентна и не создает дубликатов.
+- **Расписание:** Ежедневно, в 06:35 МСК.
