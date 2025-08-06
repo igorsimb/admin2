@@ -1,5 +1,7 @@
 import pytest
 from django.urls import reverse
+from django.utils import timezone
+import datetime
 
 from pricelens.models import BucketChoices, InvestigationStatus
 from tests.factories import CadenceProfileFactory, InvestigationFactory, UserFactory
@@ -19,11 +21,23 @@ class TestDashboardView:
         assert "pricelens/dashboard.html" in [t.name for t in response.templates]
 
     def test_dashboard_view_context_data(self, client, user):
-        """Test that the dashboard view provides the expected context data."""
+        """Test that the dashboard view provides correctly filtered context data."""
         client.force_login(user)
+
+        today = timezone.now()
+        yesterday = today - datetime.timedelta(days=1)
+        day_before = today - datetime.timedelta(days=2)
+
+        InvestigationFactory(event_dt=today)  # Should be ignored
+        InvestigationFactory(event_dt=yesterday)  # Should be counted
+        InvestigationFactory(event_dt=day_before)  # Should be ignored
+
         url = reverse("pricelens:dashboard")
         response = client.get(url)
+
         assert "summary" in response.context
+        assert response.context["summary"]["failures"] == 1
+
         assert "top_reasons" in response.context
         assert "buckets" in response.context
         assert "anomalies" in response.context
