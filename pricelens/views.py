@@ -31,8 +31,8 @@ class DashboardView(generic.TemplateView):
         # Enforce static order and use Russian labels
         ordered_buckets = []
         tooltips = {
-            BucketChoices.CONSISTENT: "Поставщик, у которого стандартное отклонение меньше или равно половине медианного интервала",  # noqa: RUF001
-            BucketChoices.INCONSISTENT: "Поставщик, у которого стандартное отклонение больше половины медианного интервала",  # noqa: RUF001
+            BucketChoices.CONSISTENT: "Поставщик, у которого стандартное отклонение меньше или равно медианному интервалу",  # noqa: RUF001
+            BucketChoices.INCONSISTENT: "Поставщик, у которого стандартное отклонение больше медианного интервала",  # noqa: RUF001
             BucketChoices.DEAD: "Поставщик, от которого не было успешных поставок 28 дней или более",
         }
         for value, label in BucketChoices.choices:
