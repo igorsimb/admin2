@@ -27,10 +27,33 @@
             </div>
             <div class="stat-title">Ошибки за вчера</div>
             <div class="stat-value text-error">{{ summary.failures }}</div>
-            <div class="stat-desc">У {{ summary.suppliers }} поставщиков</div>
+            <div class="stat-desc">
+                <a href="#" onclick="supplier_modal.showModal()" class="link link-hover">
+                    У {{ summary.supplier_count }} поставщиков
+                </a>
+            </div>
         </div>
     </div>
     <!-- End of Phase 1 -->
+
+    <!-- Supplier List Modal -->
+    <dialog id="supplier_modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Поставщики с ошибками за вчера</h3>
+            <div class="py-4">
+                <ul class="list-disc list-inside">
+                    {% for supplier in summary.suppliers_with_errors %}
+                        <li>{{ supplier.supplier__supid }} - {{ supplier.supplier__name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-action">
+                <form method="dialog">
+                    <button class="btn">Закрыть</button>
+                </form>
+            </div>
+        </div>
+    </dialog>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Phase 1: Top Reasons Card -->

@@ -18,6 +18,13 @@ class DashboardView(generic.TemplateView):
         yesterdays_investigations = Investigation.objects.filter(event_dt__date=yesterday)
         top_reasons = yesterdays_investigations.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
+        suppliers_with_errors_qs = (
+            yesterdays_investigations.order_by("supplier__name")
+            .values("supplier__supid", "supplier__name")
+            .distinct()
+        )
+        suppliers_with_errors_list = list(suppliers_with_errors_qs)
+
         bucket_counts = CadenceProfile.objects.values("bucket").annotate(cnt=Count("supplier"))
         bucket_counts_dict = {b["bucket"]: b["cnt"] for b in bucket_counts}
 
@@ -42,7 +49,8 @@ class DashboardView(generic.TemplateView):
             {
                 "summary": {
                     "failures": yesterdays_investigations.count(),
-                    "suppliers": yesterdays_investigations.values("supplier").distinct().count(),
+                    "supplier_count": len(suppliers_with_errors_list),
+                    "suppliers_with_errors": suppliers_with_errors_list,
                 },
                 "top_reasons": list(top_reasons),
                 "buckets": ordered_buckets,
