@@ -17,8 +17,15 @@ def log_investigation_event(
     """
     Safely logs an investigation event, avoiding duplicates.
     'reason' is the string code of the FailReason.
+
+    This function will not create a new Supplier if one is not found. It will
+    only log events for suppliers that already exist in the database.
     """
-    supplier, _ = Supplier.objects.get_or_create(supid=supid, defaults={"name": f"Supplier {supid}"})
+    try:
+        supplier = Supplier.objects.get(supid=supid)
+    except Supplier.DoesNotExist:
+        return
+
     fail_reason, _ = FailReason.objects.get_or_create(code=reason, defaults={"name": reason, "description": ""})
 
     try:
