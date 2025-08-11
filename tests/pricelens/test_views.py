@@ -1,10 +1,12 @@
 import pytest
+import re
+import factory
 from django.urls import reverse
 from django.utils import timezone
 import datetime
 
 from pricelens.models import BucketChoices, InvestigationStatus
-from tests.factories import CadenceProfileFactory, InvestigationFactory, UserFactory
+from tests.factories import CadenceProfileFactory, InvestigationFactory, UserFactory, SupplierFactory
 
 
 class TestDashboardView:
@@ -216,3 +218,109 @@ class TestCadenceView:
         assert response.status_code == 200
         assert len(response.context["profiles"]) == 10
         assert response.context["page_obj"].number == 2
+
+    def test_cadence_view_search_by_supid(self, client, user):
+        """Test searching by a unique supplier ID."""
+        client.force_login(user)
+        supplier = SupplierFactory(supid=12345)
+        CadenceProfileFactory(supplier=supplier)
+        CadenceProfileFactory.create_batch(5)  # Other profiles
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "12345"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 1
+        assert response.context["profiles"][0].supplier.supid == 12345
+
+    def test_cadence_view_search_by_name(self, client, user):
+        """Test searching by a unique supplier name."""
+        client.force_login(user)
+        supplier = SupplierFactory(name="Specific Supplier Name")
+        CadenceProfileFactory(supplier=supplier)
+        CadenceProfileFactory.create_batch(5)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "Specific Supplier"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 1
+        assert response.context["profiles"][0].supplier.name == "Specific Supplier Name"
+
+    def test_cadence_view_search_combined(self, client, user):
+        """Test a search query that matches both a supid and a name."""
+        client.force_login(user)
+        supplier1 = SupplierFactory(supid=54321)
+        supplier2 = SupplierFactory(name="Supplier 54321")
+        CadenceProfileFactory(supplier=supplier1)
+        CadenceProfileFactory(supplier=supplier2)
+        CadenceProfileFactory.create_batch(5)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "54321"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 2
+
+    def test_cadence_view_search_no_results(self, client, user):
+        """Test a search query that returns no results."""
+        client.force_login(user)
+        CadenceProfileFactory.create_batch(5)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "NON_EXISTENT_QUERY"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 0
+
+    def test_cadence_view_search_with_bucket_filter(self, client, user):
+        """Test that search and bucket filtering work together."""
+        client.force_login(user)
+        supplier1 = SupplierFactory(name="Searchable Consistent")
+        supplier2 = SupplierFactory(name="Searchable Dead")
+        CadenceProfileFactory(supplier=supplier1, bucket=BucketChoices.CONSISTENT)
+        CadenceProfileFactory(supplier=supplier2, bucket=BucketChoices.DEAD)
+        CadenceProfileFactory.create_batch(5, bucket=BucketChoices.CONSISTENT)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "Searchable", "bucket": "consistent"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 1
+        assert response.context["profiles"][0].supplier.name == "Searchable Consistent"
+
+    def test_cadence_view_search_supid_greater_than(self, client, user):
+        client.force_login(user)
+        for i in range(5):
+            CadenceProfileFactory(supplier=SupplierFactory(supid=100 + i))
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": ">102"})
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 2
+
+    def test_cadence_view_search_supid_less_than(self, client, user):
+        client.force_login(user)
+        for i in range(5):
+            CadenceProfileFactory(supplier=SupplierFactory(supid=200 + i))
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "<203"})
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 3
+
+    def test_cadence_view_search_supid_gte(self, client, user):
+        client.force_login(user)
+        for i in range(5):
+            CadenceProfileFactory(supplier=SupplierFactory(supid=300 + i))
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": ">=302"})
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 3
+
+    def test_cadence_view_search_supid_lte(self, client, user):
+        client.force_login(user)
+        for i in range(5):
+            CadenceProfileFactory(supplier=SupplierFactory(supid=400 + i))
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"q": "<=402"})
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 3
