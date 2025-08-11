@@ -29,6 +29,13 @@
 
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-4">
+            <form method="get" class="mb-4">
+                <div class="join w-full">
+                    <input type="hidden" name="bucket" value="{{ current_bucket }}">
+                    <input type="text" name="q" placeholder="Поиск по ID или имени поставщика..." class="input input-bordered join-item w-full" value="{{ request.GET.q }}">
+                    <button type="submit" class="btn btn-primary join-item">Поиск</button>
+                </div>
+            </form>
             <div class="overflow-x-auto">
                 <table class="table w-full">
                     <thead>

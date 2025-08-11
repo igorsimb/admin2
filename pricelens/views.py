@@ -1,6 +1,8 @@
 import datetime
 
-from django.db.models import Count, F
+import re
+
+from django.db.models import Count, F, Q
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views import generic
@@ -121,9 +123,29 @@ class CadenceView(generic.ListView):
     def get_queryset(self):
         queryset = CadenceProfile.objects.select_related("supplier").all()
         bucket_filter = self.request.GET.get("bucket")
+        query = self.request.GET.get("q")
 
         if bucket_filter and bucket_filter in BucketChoices.values:
             queryset = queryset.filter(bucket=bucket_filter)
+
+        if query:
+            q_objects = Q(supplier__name__icontains=query)
+            # Check for advanced search operators
+            match = re.match(r"(>=|<=|>|<)(\d+)", query)
+            if match:
+                operator = match.group(1)
+                value = int(match.group(2))
+                lookup = {
+                    ">": "supplier__supid__gt",
+                    "<": "supplier__supid__lt",
+                    ">=": "supplier__supid__gte",
+                    "<=": "supplier__supid__lte",
+                }[operator]
+                q_objects = Q(**{lookup: value})
+            elif query.isdigit():
+                q_objects |= Q(supplier__supid=int(query))
+            
+            queryset = queryset.filter(q_objects)
 
         return queryset.order_by("days_since_last")
 
