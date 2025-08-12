@@ -53,14 +53,27 @@
                         <tr class="hover:bg-base-300">
                             <td>{{ profile.supplier.supid }}</td>
                             <td>{{ profile.supplier.name }}</td>
-                            <td>{{ profile.median_gap_days }}</td>
-                            <td>{{ profile.sd_gap|floatformat:2 }}</td>
+                            <td>
+                                {% if profile.median_gap_days is not None %}
+                                    {{ profile.median_gap_days }}
+                                {% else %}
+                                    <span class="text-base-content/50">новый</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if profile.sd_gap is not None %}
+                                    {{ profile.sd_gap|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-base-content/50">новый</span>
+                                {% endif %}
+                            </td>
                             <td>{{ profile.days_since_last }}</td>
                             <td>
                                 <span class="badge
                                     {% if profile.bucket == 'consistent' %}badge-success{% endif %}
                                     {% if profile.bucket == 'inconsistent' %}badge-warning{% endif %}
                                     {% if profile.bucket == 'dead' %}badge-error{% endif %}
+                                    {% if profile.bucket == 'new' %}badge-info{% endif %}
                                 ">{{ profile.get_bucket_display }}</span>
                             </td>
                         </tr>

@@ -20,6 +20,7 @@ class BucketChoices(models.TextChoices):
     CONSISTENT = "consistent", "Стабильные"
     INCONSISTENT = "inconsistent", "Нестабильные"
     DEAD = "dead", "Мертвые"
+    NEW = "new", "Новые"
 
 
 class FailReason(BaseModel):
@@ -77,8 +78,8 @@ class CadenceDaily(models.Model):
 
 class CadenceProfile(BaseModel):
     supplier = models.OneToOneField(Supplier, on_delete=models.CASCADE, primary_key=True)
-    median_gap_days = models.PositiveIntegerField()
-    sd_gap = models.FloatField()
+    median_gap_days = models.PositiveIntegerField(null=True, blank=True)
+    sd_gap = models.FloatField(null=True, blank=True)
     days_since_last = models.PositiveIntegerField()
     last_success_date = models.DateField()
     bucket = models.CharField(max_length=16, choices=BucketChoices.choices)

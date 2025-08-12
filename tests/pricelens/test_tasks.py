@@ -123,6 +123,36 @@ class TestRefreshCadenceProfilesTask:
         profile = CadenceProfile.objects.get(supplier_id=1)
         assert profile.bucket == "inconsistent"
 
+    def test_handles_new_supplier_with_one_success(self, monkeypatch):
+        """Verify that a supplier with one success is put in the 'new' bucket."""
+        SupplierFactory(supid=1)
+
+        mock_df = pd.DataFrame({
+            "supid": [1],
+            "days": [[pd.to_datetime("today").date()]],
+            "med_gap": [None],
+            "sd_gap": [None],
+            "days_since_last": [1],
+            "last_success_date": [pd.to_datetime("today").date()],
+            "total_gaps": [0],
+            "bad_gaps": [0]
+        })
+
+        mock_client = MagicMock()
+        mock_client.query_dataframe.return_value = mock_df
+
+        mock_get_client = MagicMock()
+        mock_get_client.return_value.__enter__.return_value = mock_client
+
+        monkeypatch.setattr("pricelens.tasks.get_clickhouse_client", mock_get_client)
+
+        refresh_cadence_profiles_task.delay()
+
+        profile = CadenceProfile.objects.get(supplier_id=1)
+        assert profile.bucket == "new"
+        assert profile.median_gap_days is None
+        assert profile.sd_gap is None
+
 
 class TestBackfillInvestigationsTask:
     def test_backfills_missing_investigations(self, monkeypatch):
