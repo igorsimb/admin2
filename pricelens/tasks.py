@@ -101,6 +101,7 @@ def refresh_cadence_profiles_task():
         (
             SELECT
                 supid,
+                days,
                 arrayFilter(x -> x > 0, arrayDifference(arrayMap(d -> toUInt32(d), days))) AS gaps,
                 arrayReduce('quantileExact(0.5)', gaps) AS med_gap,
                 arrayReduce('stddevPop', gaps)          AS sd_gap,
@@ -112,7 +113,7 @@ def refresh_cadence_profiles_task():
         )
         SELECT *
         FROM stats
-        WHERE length(gaps) >= 1;   -- skip suppliers with <2 successes
+        WHERE length(days) >= 1;   -- skip suppliers with <1 successes
     """
     params = {"supids": supplier_ids}
 
@@ -148,30 +149,34 @@ def refresh_cadence_profiles_task():
     BAD_GAP_PERCENTAGE_THRESHOLD: float = 20.0
 
     for _, row in rows.iterrows():
-        if row["med_gap"] is None or row["sd_gap"] is None or row["med_gap"] == 0:
-            continue
-
         days_since_last = row["days_since_last"]
-        sd_gap = row["sd_gap"]
         med_gap = row["med_gap"]
-
-        if days_since_last >= 28:
-            bucket = "dead"
-        else:
-            is_consistent_by_std_dev = sd_gap <= med_gap * CONSISTENCY_MULTIPLIER
-            total_gaps = row["total_gaps"]
-            bad_gaps = row["bad_gaps"]
-            bad_gap_percentage = (bad_gaps / total_gaps) * 100 if total_gaps > 0 else 0
-            is_consistent_by_outliers = bad_gap_percentage < BAD_GAP_PERCENTAGE_THRESHOLD
-            bucket = "consistent" if is_consistent_by_std_dev or is_consistent_by_outliers else "inconsistent"
+        sd_gap = row["sd_gap"]
 
         profile_data = {
-            "median_gap_days": round(med_gap),
-            "sd_gap": float(sd_gap),
             "days_since_last": days_since_last,
             "last_success_date": row["last_success_date"],
-            "bucket": bucket,
         }
+
+        if med_gap is not None and sd_gap is not None and med_gap > 0:
+            if days_since_last >= 28:
+                bucket = "dead"
+            else:
+                is_consistent_by_std_dev = sd_gap <= med_gap * CONSISTENCY_MULTIPLIER
+                total_gaps = row["total_gaps"]
+                bad_gaps = row["bad_gaps"]
+                bad_gap_percentage = (bad_gaps / total_gaps) * 100 if total_gaps > 0 else 0
+                is_consistent_by_outliers = bad_gap_percentage < BAD_GAP_PERCENTAGE_THRESHOLD
+                bucket = "consistent" if is_consistent_by_std_dev or is_consistent_by_outliers else "inconsistent"
+
+            profile_data["median_gap_days"] = round(med_gap)
+            profile_data["sd_gap"] = float(sd_gap)
+            profile_data["bucket"] = bucket
+        else:
+            # This is a new supplier with only one success
+            profile_data["median_gap_days"] = None
+            profile_data["sd_gap"] = None
+            profile_data["bucket"] = "new"
 
         _, created = CadenceProfile.objects.update_or_create(
             supplier_id=row["supid"],

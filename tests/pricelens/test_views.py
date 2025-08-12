@@ -324,3 +324,37 @@ class TestCadenceView:
         response = client.get(url, {"q": "<=402"})
         assert response.status_code == 200
         assert len(response.context["profiles"]) == 3
+
+    def test_cadence_view_new_supplier_display(self, client, user):
+        """Test that a supplier in the 'new' bucket is displayed correctly."""
+        client.force_login(user)
+        new_profile = CadenceProfileFactory(
+            bucket=BucketChoices.NEW,
+            median_gap_days=None,
+            sd_gap=None,
+            days_since_last=5,
+        )
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert new_profile in response.context["profiles"]
+
+        content = response.content.decode()
+        assert "новый" in content
+        assert "badge-info" in content
+
+    def test_cadence_view_filter_by_new_bucket(self, client, user):
+        """Test filtering by the 'new' bucket."""
+        client.force_login(user)
+        CadenceProfileFactory.create_batch(5, bucket=BucketChoices.CONSISTENT)
+        CadenceProfileFactory.create_batch(3, bucket=BucketChoices.NEW)
+
+        url = reverse("pricelens:cadence")
+        response = client.get(url, {"bucket": "new"})
+
+        assert response.status_code == 200
+        assert len(response.context["profiles"]) == 3
+        for profile in response.context["profiles"]:
+            assert profile.bucket == BucketChoices.NEW
