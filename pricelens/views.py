@@ -36,6 +36,7 @@ class DashboardView(generic.TemplateView):
             BucketChoices.CONSISTENT: "Поставщик, у которого стандартное отклонение меньше или равно медианному интервалу",  # noqa: RUF001
             BucketChoices.INCONSISTENT: "Поставщик, у которого стандартное отклонение больше медианного интервала",  # noqa: RUF001
             BucketChoices.DEAD: "Поставщик, от которого не было успешных поставок 28 дней или более",
+            BucketChoices.NEW: "Поставщик всего с одной записью в базе данных",
         }
         for value, label in BucketChoices.choices:
             ordered_buckets.append(
