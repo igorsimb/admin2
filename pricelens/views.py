@@ -17,7 +17,9 @@ class DashboardView(generic.TemplateView):
         ctx = super().get_context_data(**kwargs)
 
         yesterday = timezone.now().date() - datetime.timedelta(days=1)
-        yesterdays_investigations = Investigation.objects.filter(event_dt__date=yesterday)
+        yesterdays_investigations = Investigation.objects.filter(
+            event_dt__date=yesterday, supplier__is_enabled=True
+        )
         top_reasons = yesterdays_investigations.values("fail_reason__name").annotate(cnt=Count("id")).order_by("-cnt")[:5]
 
         suppliers_with_errors_qs = (
@@ -27,7 +29,9 @@ class DashboardView(generic.TemplateView):
         )
         suppliers_with_errors_list = list(suppliers_with_errors_qs)
 
-        bucket_counts = CadenceProfile.objects.values("bucket").annotate(cnt=Count("supplier"))
+        bucket_counts = (
+            CadenceProfile.objects.filter(supplier__is_enabled=True).values("bucket").annotate(cnt=Count("supplier"))
+        )
         bucket_counts_dict = {b["bucket"]: b["cnt"] for b in bucket_counts}
 
         # Enforce static order and use Russian labels
@@ -57,7 +61,7 @@ class DashboardView(generic.TemplateView):
                 },
                 "top_reasons": list(top_reasons),
                 "buckets": ordered_buckets,
-                "anomalies": CadenceProfile.objects.exclude(bucket=BucketChoices.DEAD)
+                "anomalies": CadenceProfile.objects.exclude(bucket=BucketChoices.DEAD).exclude(supplier__is_enabled=False)
                 .filter(days_since_last__gt=F("median_gap_days") * 2)
                 .order_by("-days_since_last")[:50],
             }
