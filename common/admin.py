@@ -5,7 +5,7 @@ from .models import Supplier
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ("supid", "name", "is_partner")
+    list_display = ("supid", "name", "is_partner", "is_enabled")
     search_fields = (
         "supid",
         "name",
