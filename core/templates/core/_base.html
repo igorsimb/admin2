@@ -1,4 +1,5 @@
 {% load static %}
+ {% load django_htmx %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -8,7 +9,8 @@
 
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://unpkg.com/htmx.org/dist/htmx.js" defer></script>
+{#    <script src="https://unpkg.com/htmx.org/dist/htmx.js" defer></script>#}
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js" integrity="sha384-ZBXiYtYQ6hJ2Y0ZNoYuI+Nq5MqWBr+chMrS/RkXpNzQCApHEhOt2aY8EJgqwHLkJ" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
@@ -25,7 +27,7 @@
     </title>
 
 </head>
-<body class="{% block class %}{% endblock %}">
+<body class="{% block class %}{% endblock %}" hx-headers='{"x-csrftoken": "{{ csrf_token }}"}'>
 
 {% include "core/partials/messages.html" %}
 {% include "core/partials/header.html" %}

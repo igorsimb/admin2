@@ -12,9 +12,9 @@ env.read_env(BASE_DIR / ".env.staging")
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-INSTALLED_APPS += [
-    "django_extensions",
-]
+# INSTALLED_APPS += [
+#     "django_extensions",
+# ]
 
 
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
