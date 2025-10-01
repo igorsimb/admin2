@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "cross_dock.apps.CrossDockConfig",
     "pricelens.apps.PricelensConfig",
     "common.apps.CommonConfig",
+    "emex_upload",
 ]
 
 # Django Rest Framework
