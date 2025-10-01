@@ -43,13 +43,11 @@ ENV PYTHONUNBUFFERED=1
 #USER appuser
 
 # Expose the application port
-EXPOSE 8061
+EXPOSE 8000
 
-CMD ["sh", "-c", "export DJANGO_SETTINGS_MODULE=config.django_config.production && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python -m gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 6 --threads 4 --worker-class gthread --timeout 120"]
+# Fix line endings and make entry file executable
+RUN python -c "import sys; filename = sys.argv[1]; text = open(filename, 'r').read().replace('\r\n', '\n'); open(filename, 'w').write(text)" /app/entrypoint.prod.sh
+RUN chmod +x  /app/entrypoint.prod.sh
 
-
-## Make entry file executable
-#RUN chmod +x  /app/entrypoint.prod.sh
-#
-## Start the application using Gunicorn
-#CMD ["/app/entrypoint.prod.sh"]
+# Start the application using Gunicorn
+CMD ["/app/entrypoint.prod.sh"]

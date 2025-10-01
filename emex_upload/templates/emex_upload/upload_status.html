@@ -1,0 +1,402 @@
+{% extends "core/layouts/blank.html" %}
+{% load static %}
+
+{% block title %}Emex Upload - Обработка файла{% endblock %}
+
+{% block content %}
+<style>
+.timeline-compact {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+.timeline-icon-substep {
+    transition: color 0.3s ease-in-out;
+}
+</style>
+
+<div class="container mx-auto p-4 md:p-6">
+    <div class="text-sm breadcrumbs mb-6">
+        <ul>
+            <li><a href="{% url 'index' %}" class="text-primary">Главная</a></li>
+            <li><a href="{% url 'emex_upload:upload' %}">Загрузка данных Emex</a></li>
+            <li class="text-gray-500">Обработка файла</li>
+        </ul>
+    </div>
+
+    <div class="card-body items-center text-center p-0">
+        <h2 class="card-title text-2xl font-bold mb-4">Обработка файла</h2>
+        <p class="mb-6 text-base-content/60">Пожалуйста, подождите, пока мы проверяем данные. Это может занять несколько минут.</p>
+
+        <ul class="timeline timeline-vertical timeline-compact">
+            <li id="timeline-step-reading-file">
+                <div class="timeline-middle">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 timeline-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                </div>
+                <div class="timeline-end timeline-box text-start">
+                    <div class="font-bold">Читаем файл</div>
+                    <div class="text-xs opacity-70">Проверяем тип файла и его кодировку (UTF-8, windows-1251)</div>
+                    <div class="text-xs text-error-content opacity-70 error-details"></div>
+                </div>
+                <hr/>
+            </li>
+            <li id="timeline-step-header-validation">
+                <hr/>
+                <div class="timeline-middle">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 timeline-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                </div>
+                <div class="timeline-end timeline-box text-start">
+                    <div class="font-bold">Проверка заголовков</div>
+                    <div class="text-xs opacity-70">Количество и название заголовков должны соответствовать ожидаемым</div>
+                    <div class="text-xs text-error-content opacity-70 error-details"></div>
+                </div>
+                <hr/>
+            </li>
+            <li id="timeline-step-row-integrity">
+                <hr/>
+                <div class="timeline-middle">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 timeline-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                </div>
+                <div class="timeline-end timeline-box text-start">
+                    <div class="font-bold">Проверка целостности и типов данных</div>
+                    <ul id="sub-steps-row-integrity" class="text-xs list-disc pl-5 pt-2 text-left space-y-2">
+                        <li>
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-2 timeline-icon-substep text-base-content/30"></svg>
+                                <span
+                                     style="text-decoration: underline dotted;cursor:help; text-underline-offset: 3px;"
+                                     title="Проверяет, существует ли последняя колонка. Если нет, это как правило означает, что в строке не хватает полей или нарушена её структура.">
+                                    Проверка структуры файла (кол-во колонок в каждой строке):
+                                </span>
+                                <span class="opacity-70 result-text ms-1">Ожидание...</span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-2 timeline-icon-substep text-base-content/30"></svg>
+                                <span>Нечисловые значения в числовых колонках: <span class="opacity-70 result-text">Ожидание...</span></span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <hr/>
+            </li>
+            <li id="timeline-step-business-rules">
+                <hr/>
+                <div class="timeline-middle">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 timeline-icon"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                </div>
+                <div class="timeline-end timeline-box text-start">
+                    <div class="font-bold">Валидация бизнес-логики</div>
+                    <ul id="sub-steps-business-rules" class="text-xs list-disc pl-5 pt-2 text-left space-y-2">
+                         <li>
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-2 timeline-icon-substep text-base-content/30"></svg>
+                                <span>Проверка формата колонки 'склад': <span class="opacity-70 result-text">Ожидание...</span></span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-2 timeline-icon-substep text-base-content/30"></svg>
+                                <span>Проверка, что если кол-во > 0 и цена > 0, то общая сумма > 0: <span class="opacity-70 result-text">Ожидание...</span></span>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-2 timeline-icon-substep text-base-content/30"></svg>
+                                <span>Проверка, что кол-во * цена = общая сумма: <span class="opacity-70 result-text">Ожидание...</span></span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+
+        <div id="upload-result" class="mt-6 w-full max-w-md"></div>
+
+        <div id="confirmation-buttons" class="mt-6 w-full max-w-md hidden">
+            <div class="alert alert-warning">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <span>Превышен порог ошибок. Вы уверены, что хотите загрузить только корректные строки?</span>
+            </div>
+            <div class="mt-4 flex justify-center gap-4">
+                <button id="confirm-upload-btn" class="btn btn-primary">Да, загрузить корректные строки</button>
+                <button id="cancel-upload-btn" class="btn btn-ghost" onclick="window.location.href='{% url 'emex_upload:upload' %}'">Отмена</button>
+            </div>
+        </div>
+
+        <div id="insertion-status" class="mt-4 w-full max-w-md"></div>
+
+    </div>
+</div>
+
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const CSRF_TOKEN = getCookie('csrftoken');
+
+    const ICONS = {
+        pending: `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM5 10a5 5 0 1110 0 5 5 0 01-10 0z" clip-rule="evenodd" />`,
+        in_progress: `<path d="M10 2a8 8 0 1 0 5.657 13.657A8 8 0 0 0 10 2zm0 14a6 6 0 1 1 0-12 6 6 0 0 1 0 12z" fill-opacity="0.4"/><path d="M10 2a8 8 0 0 1 8 8h-2a6 6 0 0 0-6-6V2z"><animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="1s" repeatCount="indefinite"/></path>`,
+        success: `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />`,
+        failure: `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />`
+    };
+
+    function updateTimelineItem(timelineItem, status, detailsText = null) {
+        if (!timelineItem) return;
+        const timelineBox = timelineItem.querySelector('.timeline-box');
+        const icon = timelineItem.querySelector('.timeline-icon');
+        const detailsDiv = timelineItem.querySelector('.error-details');
+        const hrs = timelineItem.querySelectorAll('hr');
+        const outgoingHr = hrs.length ? hrs[hrs.length - 1] : null;
+        const nextLi = timelineItem.nextElementSibling;
+        const nextIncomingHr = nextLi ? nextLi.querySelector('hr') : null;
+
+        if (status === 'SUCCESS' || status === 'FAILURE') {
+            if (status === 'SUCCESS') {
+                timelineBox && timelineBox.classList.add('border', 'border-success');
+                icon && icon.classList.add('text-success');
+                icon && (icon.innerHTML = ICONS.success);
+                outgoingHr && outgoingHr.classList.add('bg-success');
+                nextIncomingHr && nextIncomingHr.classList.add('bg-success');
+            } else {
+                timelineBox && timelineBox.classList.add('border', 'border-error');
+                icon && icon.classList.add('text-error');
+                icon && (icon.innerHTML = ICONS.failure);
+                outgoingHr && outgoingHr.classList.add('bg-error');
+                nextIncomingHr && nextIncomingHr.classList.add('bg-error');
+            }
+        }
+        if (detailsText && detailsDiv) detailsDiv.textContent = detailsText;
+    }
+
+    function updateSubStepItem(subStepElement, status, details) {
+        if (!subStepElement) return;
+        const icon = subStepElement.querySelector('.timeline-icon-substep');
+        const resultText = subStepElement.querySelector('.result-text');
+        icon.classList.remove('text-success', 'text-error', 'text-base-content/30', 'animate-spin');
+
+        if (status === 'IN_PROGRESS') {
+            icon.innerHTML = ICONS.in_progress;
+            icon.classList.add('animate-spin');
+            resultText.textContent = 'В процессе...';
+        } else if (status === 'SUCCESS') {
+            icon.innerHTML = ICONS.success;
+            icon.classList.add('text-success');
+            resultText.textContent = details.message;
+        } else if (status === 'FAILURE') {
+            icon.innerHTML = ICONS.failure;
+            icon.classList.add('text-error');
+            resultText.textContent = details.message;
+        }
+    }
+
+    function handleProgressUpdate(payload) {
+        const { step, status, details, sub_step_index } = payload;
+        if (sub_step_index !== undefined) {
+            const parentIdMap = {
+                'row integrity & type coercion': 'sub-steps-row-integrity',
+                'business rule validation': 'sub-steps-business-rules'
+            };
+            const parentUlId = parentIdMap[(step || '').toLowerCase()];
+            if (parentUlId) {
+                const parentUl = document.getElementById(parentUlId);
+                const subStepElement = parentUl.children[sub_step_index];
+                updateSubStepItem(subStepElement, status, details);
+            }
+            return;
+        }
+        const stepToIdMap = {
+            'reading file': 'timeline-step-reading-file',
+            'header validation': 'timeline-step-header-validation',
+            'row integrity & type coercion': 'timeline-step-row-integrity',
+            'business rule validation': 'timeline-step-business-rules'
+        };
+        const elementId = stepToIdMap[(step || '').toLowerCase()];
+        if (!elementId) return;
+        const timelineItem = document.getElementById(elementId);
+        if (!timelineItem) return;
+        let errorDetailsText = null;
+        if (details) {
+            if (details.missing_columns) {
+                errorDetailsText = `Отсутствуют колонки: ${details.missing_columns.join(', ')}`;
+            } else if (details.file_read_error) {
+                errorDetailsText = details.file_read_error[0];
+            }
+        }
+        updateTimelineItem(timelineItem, status, errorDetailsText);
+    }
+
+    function monitorInsertion(taskId) {
+        const insertionStatusDiv = document.getElementById('insertion-status');
+        insertionStatusDiv.innerHTML = `
+            <div class="flex items-center justify-center gap-4">
+                <div class="radial-progress bg-success/30 text-primary" style="--value:0;" aria-valuenow="0" role="progressbar">0%</div>
+                <span class="font-bold">Отправка данных в базу...</span>
+            </div>
+        `;
+        const radialProgress = insertionStatusDiv.querySelector('.radial-progress');
+        const backLink = `<div class="mt-4"><a href="{% url 'emex_upload:upload' %}" class="btn btn-link">Назад к загрузке файла</a></div>`;
+
+        const url = `/emex-upload/task-status/${taskId}/`;
+        const es = new EventSource(url, { withCredentials: true });
+
+        es.onmessage = (event) => {
+            try {
+                const payload = JSON.parse(event.data);
+                console.log("Insertion Message:", payload);
+
+                if (payload.status === 'PROGRESS' && payload.meta && payload.meta.step === 'INSERTING') {
+                    const progress = payload.meta.progress;
+                    if (radialProgress && progress !== undefined) {
+                        radialProgress.style.setProperty('--value', progress);
+                        radialProgress.setAttribute('aria-valuenow', progress);
+                        radialProgress.textContent = `${progress}%`;
+                    }
+                } else if (payload.status === 'SUCCESS' || (payload.status === 'COMPLETE' && payload.result.status === 'SUCCESS')) {
+                    insertionStatusDiv.innerHTML = `<div class="alert alert-success"><span>${payload.result.message}</span></div>` + backLink;
+                    es.close();
+                } else if (payload.status === 'FAILURE') {
+                    const errorDetails = payload.result ? payload.result.exc_message : "Неизвестная ошибка";
+                    insertionStatusDiv.innerHTML = `<div class="alert alert-error"><span>Ошибка при загрузке: ${errorDetails}</span></div>` + backLink;
+                    es.close();
+                }
+            } catch (err) {
+                 console.error("Failed to parse insertion SSE data:", err, event.data);
+                 insertionStatusDiv.innerHTML = `<div class="alert alert-error"><span>Произошла ошибка при отслеживании прогресса загрузки.</span></div>` + backLink;
+                 es.close();
+            }
+        };
+
+        es.onerror = (error) => {
+            console.warn("Insertion SSE error:", error);
+            insertionStatusDiv.innerHTML = `<div class="alert alert-error"><span>Ошибка соединения при отслеживании загрузки.</span></div>` + backLink;
+            es.close();
+        };
+    }
+
+    function triggerInsertion(path) {
+        console.log("Triggering insertion for:", path);
+        const confirmationDiv = document.getElementById('confirmation-buttons');
+        confirmationDiv.classList.add('hidden');
+
+        fetch("{% url 'emex_upload:confirm_upload' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ clean_file_path: path })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'SUCCESS' && data.task_id) {
+                monitorInsertion(data.task_id);
+            } else {
+                document.getElementById('insertion-status').innerHTML = `<div class="alert alert-error"><span>Не удалось запустить задачу загрузки: ${data.message}</span></div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Insertion trigger failed:', error);
+            document.getElementById('insertion-status').innerHTML = `<div class="alert alert-error"><span>Ошибка при отправке запроса на загрузку.</span></div>`;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const url = "{% url 'emex_upload:task_status' task_id=task_id %}";
+        const es = new EventSource(url, { withCredentials: true });
+
+        document.querySelectorAll('.timeline-icon-substep, .timeline-icon').forEach(icon => {
+            icon.innerHTML = ICONS.pending;
+        });
+
+        es.onopen = () => console.log("Validation SSE connection opened.");
+
+        es.onmessage = (event) => {
+            console.log('Validation SSE Message:', event.data);
+            try {
+                const payload = JSON.parse(event.data);
+
+                if (payload.status === 'PROGRESS' && payload.meta) {
+                    handleProgressUpdate(payload.meta);
+                }
+
+                if (payload.status === 'SUCCESS' || (payload.status === 'COMPLETE' && payload.result)) {
+                    const result = payload.result;
+                    console.log('Validation complete:', result);
+                    es.close();
+
+                    const resultDiv = document.getElementById('upload-result');
+                    const confirmationDiv = document.getElementById('confirmation-buttons');
+                    const confirmBtn = document.getElementById('confirm-upload-btn');
+                    const insertionStatusDiv = document.getElementById('insertion-status');
+
+                    if (result.error_summary && result.error_summary.missing_columns && result.error_summary.missing_columns.length > 0) {
+                        resultDiv.innerHTML = `<div class="alert alert-error"><span>Отсутствуют колонки: ${result.error_summary.missing_columns.join(', ')}</span></div>`;
+                        return;
+                    }
+
+                    const problematicCount = result.problematic_row_count;
+                    const totalCount = result.original_row_count;
+                    const cleanFilePath = result.clean_file_path;
+                    const threshold = {{ ACCEPTABLE_ERROR_THRESHOLD }};
+
+                    const alertClass = problematicCount > 0 ? 'border-warning' : 'border-success';
+                    const message = `Проверка завершена. Обнаружено ${problematicCount} проблемных строк из ${totalCount}.`;
+                    resultDiv.innerHTML = `<div class="alert ${alertClass} shadow"><span>${message}</span></div>`;
+
+                    const backLink = `<div class="mt-4"><a href="{% url 'emex_upload:upload' %}" class="btn btn-link">Назад к загрузке файла</a></div>`;
+
+                    if (problematicCount > 0 && !cleanFilePath) {
+                         insertionStatusDiv.innerHTML = `<div class="alert alert-info mt-4"><span>Нет корректных данных для загрузки.</span></div>` + backLink;
+                         return;
+                    }
+
+                    if (problematicCount > threshold) {
+                        confirmationDiv.classList.remove('hidden');
+                        confirmBtn.onclick = () => triggerInsertion(cleanFilePath);
+                    } else {
+                        triggerInsertion(cleanFilePath);
+                    }
+                }
+
+                if (payload.status === 'FAILURE') {
+                    console.error('Task failed:', payload.meta);
+                    es.close();
+                    const resultDiv = document.getElementById('upload-result');
+                    let errorMessage = "Проверка провалена.";
+                    if (payload.meta && payload.meta.details) {
+                       if (payload.meta.details.missing_columns) {
+                            errorMessage = `Проверка провалена: Отсутствуют колонки: ${payload.meta.details.missing_columns.join(', ')}`;
+                        } else if (payload.meta.details.file_read_error) {
+                            errorMessage = `Проверка провалена: ${payload.meta.details.file_read_error[0]}`;
+                        }
+                    }
+                    resultDiv.innerHTML = `<div class="alert alert-error"><span>${errorMessage}</span></div>`;
+                    resultDiv.innerHTML += `<div class="mt-4"><a href="{% url 'emex_upload:upload' %}" class="btn btn-link">Назад к загрузке файла</a></div>`;
+                }
+
+            } catch (err) {
+                console.error("Failed to parse validation SSE data:", err, event.data);
+            }
+        };
+
+        es.onerror = (error) => {
+            console.warn("Validation SSE error:", error);
+            es.close();
+        };
+    });
+</script>
+
+{% endblock %}

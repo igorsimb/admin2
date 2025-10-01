@@ -1,60 +1,69 @@
----
-description: 
-globs: 
-alwaysApply: false
----
-General Guidelines
-
-docs/project_overview.md contains the primary guide for the project
-Do not make code changes unless specifically instructed
-Never apply superficial "patches" — always identify and address the root cause
-For Python-related commands, use: uv run <command>
+Don't be sycophantic
 Use pytest for all unit testing
-Avoid redundant comments that merely restate what the code does — only comment on why or non-obvious implementation details
+Avoid redundant comments that merely restate what the code does тАФ only comment on why or non-obvious implementation details. However, if code is complex and not clear, keep/add comments.
+Do not make code changes that I did not explicitly request. E.g. if asked to translate logs into Russian, do not make any code logic changes. Only do what I explicitly ask.
+Be proactive in identifying code smells. After a feature is implemented, you are encouraged to briefly review the changes and suggest refactorings (e.g., for DRY, readability) if you see a clear opportunity for improvement.
 
-Type Hinting Guidelines:
+# Workflow Preferences
+I will handle all `git` operations myself. Your role is to propose a conventional commit message after each logical task is complete.
+
+# Type Hinting Guidelines
 - Prefer PEP 604 syntax for union types:
   - Use int | str instead of Union[int, str]
   - Use X | None instead of Optional[X]
 - Annotate None explicitly for functions that return nothing
 - Always follow PEP 604 style unless backward compatibility with Python <3.10 is required
 - Do not mix Optional[X] and X | None in the same codebase
-- Avoid excessive type annotations on trivial or obvious code — favor clarity over verbosity
+- Avoid excessive type annotations on trivial or obvious code - favor clarity over verbosity
 
 use conventional commits
+use "double quotes" instead of 'single quotes'
 
-Best Practices for Testing
-    - Follow the AAA Pattern
-        - Arrange: Set up test data and preconditions
-        - Act: Execute the code being tested
-        - Assert: Verify the results
+# Best Practices for Implementation
+- When implementing performance-critical code, especially for concurrent network I/O (e.g., checking thousands of proxies), start with a robust pattern that prevents resource exhaustion. For `asyncio` tasks, this means defaulting to a concurrency-limiter like `asyncio.Semaphore`.
 
-    - Use Descriptive Test Names
-        - Test names should clearly describe what's being tested
-        - Example: test_process_cross_dock_data_handles_empty_results
+# Best Practices for Testing
 
-    - One Assertion Per Test
-        - Each test should verify a single behavior
-        - Makes tests easier to understand and maintain
+- **Follow the AAA Pattern**
+    - **Arrange:** Set up all test data, mocks, and preconditions. Prefer to mock dependencies as close to the test as possible (e.g., using `@patch` decorators or `monkeypatch`) rather than creating complex, all-encompassing fixtures.
+    - **Act:** Execute the single function or method being tested.
+    - **Assert:** Verify the outcome against the expectations.
+	- Do not put actual words "Arrange", "Act", "Assert" into test comments. This should be obvious from the code.
 
-    - Use Fixtures for Common Setup
-        - Create reusable test fixtures with pytest's fixture system
-        - Reduces code duplication and improves maintainability
+- **Test a Single Logical Concept Per Test**
+    - While the "one assertion per test" rule is a good guideline, the primary goal is to ensure each test verifies a single, cohesive piece of behavior. It's acceptable to have multiple `assert` statements if they all check the state of a single resulting object or concept.
 
-    - Mock External Dependencies
-        - Isolate tests from external systems like ClickHouse
-        - Ensures tests are fast, reliable, and focused
+- **Use Descriptive Test Names**
+    - Test names should be long and descriptive, clearly stating what they are testing and under what conditions.
+    - Example: `test_start_load_mail_continues_when_one_account_fails_to_connect`
 
-    - Test Edge Cases
-        - Empty data sets
-        - Error conditions
-        - Boundary values
+- **Keep Tests Independent**
+    - Tests must not depend on each other or the order in which they are run. Each test should set up its own state and be able to run in complete isolation.
 
-    - Use Parameterized Tests
-        - Test multiple scenarios with different inputs
-        - Reduces code duplication
+- **Use Fixtures for Common Setup**
+    - For complex or repeated setup logic, use pytest's `@pytest.fixture` system to create reusable test fixtures. This reduces code duplication and improves maintainability.
 
-    - Keep Tests Independent
-        - Tests should not depend on each other
-        - Each test should be able to run in isolation
+- **Mock External Dependencies and Boundaries**
+    - Isolate tests from external systems like databases (ClickHouse), network APIs, and the filesystem.
+    - This ensures tests are fast, reliable, and focused only on the code you've written.
 
+- **Use a Clear and Consistent Naming Convention for Mocks**
+    - To improve readability, use a consistent prefix for mock objects, such as `mock_`.
+    - Example: `mock_get_imap_conn`
+
+- **Test the Public Interface, Not Private Implementation**
+    - Tests should focus on the public-facing methods of your classes and modules.
+    - Avoid testing private methods (e.g., `_some_helper_function`) directly. If a private method is complex, consider moving it to its own module and testing it there.
+
+- **Keep Tests Close to the Code They Test**
+    - Mirror the `src` directory structure within the `tests` directory. This makes it easy for developers to find the tests associated with a specific piece of code.
+    - Example: `src/mail_service/mail_load.py` is tested by `tests/mail_service/test_mail_load.py`.
+
+- **Test Edge Cases**
+    - Explicitly test for scenarios like:
+        - Empty data sets or `None` inputs
+        - Error conditions and exception handling
+        - Boundary values (e.g., 0, -1, max values)
+
+- **Use Parameterized Tests for Multiple Scenarios**
+    - When testing the same logic with different inputs and expected outputs, use pytest's `@pytest.mark.parametrize` to reduce code duplication.

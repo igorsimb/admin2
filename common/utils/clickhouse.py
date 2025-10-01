@@ -7,12 +7,10 @@ connection method. It centralizes error handling and resource management.
 """
 
 import contextlib
-import logging
+from loguru import logger
 
-from clickhouse_driver import Client
+import clickhouse_connect
 from django.conf import settings
-
-logger = logging.getLogger(__name__)
 
 # Default ClickHouse connection settings
 # These are fallbacks and should ideally be configured in Django's settings.
@@ -22,7 +20,7 @@ DEFAULT_CLICKHOUSE_PASSWORD = ""
 
 
 @contextlib.contextmanager
-def get_clickhouse_client(readonly: int = 1) -> Client:
+def get_clickhouse_client(readonly: int = 1):
     """
     Provides a managed ClickHouse client connection.
 
@@ -50,7 +48,7 @@ def get_clickhouse_client(readonly: int = 1) -> Client:
     user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
     password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
 
-    client = Client(host, user=user, password=password, settings={"readonly": readonly})
+    client = clickhouse_connect.get_client(host=host, username=user, password=password, settings={"readonly": readonly})
     logger.debug(f"Connecting to ClickHouse at {host}...")
 
     try:
@@ -59,5 +57,5 @@ def get_clickhouse_client(readonly: int = 1) -> Client:
         logger.error(f"An error occurred with ClickHouse operation: {e}")
         raise
     finally:
-        client.disconnect()
+        client.close()
         logger.debug("ClickHouse client disconnected.")

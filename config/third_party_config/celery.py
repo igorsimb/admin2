@@ -7,6 +7,10 @@ result backend, and task discovery.
 
 import os
 
+# Set default environment for Celery if not specified.
+# This is crucial for running the worker directly.
+os.environ.setdefault("DJANGO_ENVIRONMENT", "staging")
+
 from celery import Celery
 from celery.schedules import crontab
 
