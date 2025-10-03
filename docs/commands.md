@@ -151,3 +151,9 @@ Testing ClickHouse connection...
 socket.gaierror: [Errno 11001] getaddrinfo failed
 ERROR:cross_dock.services.clickhouse_service:Error during ClickHouse operation: Code: 210. getaddrinfo failed (111)
 ```
+
+
+### Запуск staging docker контейнера 
+```bash
+docker-compose -f docker-compose.dev.yml up --build -d
+```
