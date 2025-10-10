@@ -77,7 +77,7 @@ def task_status_view(request, task_id: str):
                     data = {"status": task_result.state, "meta": task_result.info}
                     yield f"data: {json.dumps(data)}\n\n"
 
-            # Send a heartbeat to keep the connection alive
+            # Send a heartbeat to keep the connection alive and sample progress (delay_between_report_steps_sec)
             yield ": ping\n\n"
             time.sleep(1)
     response = StreamingHttpResponse(sse_stream(), content_type="text/event-stream")

@@ -4,6 +4,7 @@ from loguru import logger
 
 from config.third_party_config.celery import app
 from emex_upload.services import validate_file_and_animate_progress, insert_data_to_clickhouse
+from core.reporting import ProgressReporter, ReportStatus
 
 
 def convert_sets_to_lists(obj):
@@ -28,14 +29,9 @@ def validate_emex_file_task(self, file_path: str):
     try:
         file_path_obj = Path(file_path)
         final_result = None
+        reporter = ProgressReporter(task=self, delay_between_report_steps_sec=1.0)
         with open(file_path_obj, "rb") as f:
-            # The service function is now a generator that yields progress
-            progress_generator = validate_file_and_animate_progress(f, self)
-            for progress_update in progress_generator:
-                # The final yield will have a 'COMPLETE' status
-                if progress_update.get("status") == "COMPLETE":
-                    final_result = progress_update["result"]
-                    break
+            final_result = validate_file_and_animate_progress(f, reporter)
 
         if not final_result:
             raise ValueError("Validation did not produce a final result.")
@@ -61,14 +57,15 @@ def insert_emex_data_task(self, clean_file_path: str):
     Celery task to insert a clean Emex data file into ClickHouse.
     """
     logger.info(f"Starting data insertion for file: {clean_file_path}")
-    self.update_state(state='PROGRESS', meta={'step': 'INSERTING', 'status': 'IN_PROGRESS'})
+    reporter = ProgressReporter(task=self, delay_between_report_steps_sec=1.0)
+    reporter.report_step(step="INSERTING", status=ReportStatus.IN_PROGRESS)
     try:
         if not clean_file_path:
             raise ValueError("No clean file path provided for insertion.")
 
         df = pd.read_pickle(clean_file_path)
         
-        success, message = insert_data_to_clickhouse(df, task=self)
+        success, message = insert_data_to_clickhouse(df, reporter=reporter)
 
         if not success:
             raise RuntimeError(f"ClickHouse insertion failed: {message}")
@@ -78,6 +75,6 @@ def insert_emex_data_task(self, clean_file_path: str):
 
     except Exception as e:
         logger.error(f"Data insertion task for {clean_file_path} failed: {e}", exc_info=True)
-        self.update_state(state='FAILURE', meta={'step': 'INSERTING', 'status': 'FAILURE', 'details': str(e)})
+        reporter.report_failure(step="INSERTING", details={"error": str(e)})
         # Re-raise the exception so the task fails in Celery
         raise
