@@ -232,7 +232,7 @@
         let errorDetailsText = null;
         if (details) {
             if (details.missing_columns) {
-                errorDetailsText = `Отсутствуют колонки: ${details.missing_columns.join(', ')}`;
+                errorDetailsText = `Отсутствуют ожидаемые заголовки колонок.`;
             } else if (details.file_read_error) {
                 errorDetailsText = details.file_read_error[0];
             }
