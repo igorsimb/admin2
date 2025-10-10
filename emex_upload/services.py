@@ -6,6 +6,7 @@ import pandas as pd
 from loguru import logger
 
 from common.utils.clickhouse import get_clickhouse_client
+from core.reporting import ProgressReporter, ReportStatus
 
 PROGRESS_SLEEP_SEC = 1
 INSERT_CHUNK_SIZE = 500
@@ -271,7 +272,9 @@ class BusinessLogicValidator:
         return clean_errors
 
     def _validate_warehouse_values(self) -> set[int]:
-        """Checks that 'warehouse' is either 'ДА' or 'НЕТ'."""
+        """
+        Checks that 'warehouse' is either 'ДА' or 'НЕТ'.
+        """
         bad_rows = ~self._df["warehouse"].isin(["ДА", "НЕТ"])
         return set(self._df.index[bad_rows])
 
@@ -306,7 +309,9 @@ class BusinessLogicValidator:
         return bad_rows
 
     def _validate_totals(self) -> set[int]:
-        """Validates that quantity * price = total."""
+        """
+        Validates that quantity * price = total.
+        """
         purchase_bad = (self._df["quantity"] * self._df["purchase_price"]).round(2) != self._df["purchase_total"].round(
             2
         )
@@ -355,11 +360,11 @@ def rename_for_clickhouse(df: pd.DataFrame) -> pd.DataFrame:
 # -----------------
 
 
-def validate_file_and_animate_progress(file_obj, task):
+def validate_file_and_animate_progress(file_obj, reporter: ProgressReporter) -> dict:
     """
     Performs a full, memory-safe validation and sends timed, sequential updates to the UI.
     """
-    yields = lambda meta: task.update_state(state="PROGRESS", meta=meta)
+    # Reporter is provided by the caller (task orchestrator in tasks.py)
 
     # --- DETECT ENCODING ---
     file_obj.seek(0)
@@ -379,71 +384,59 @@ def validate_file_and_animate_progress(file_obj, task):
 
     # --- PHASE 1: SETUP AND PRE-CHECKS ---
     # 1. Reading File Step
-    yields({"step": "Reading File", "status": "IN_PROGRESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(step="Reading File", status=ReportStatus.IN_PROGRESS)
     try:
         file_obj.seek(0)
         if not file_obj.read(1024).strip():
-            yields({"step": "Reading File", "status": "FAILURE", "details": {"file_read_error": ["Файл пуст"]}})
-            return {}, 0, 0
-        file_obj.seek(0)
-    except Exception as e:
-        yields({"step": "Reading File", "status": "FAILURE", "details": {"file_read_error": [str(e)]}})
-        yield {
-            "status": "COMPLETE",
-            "result": {
+            reporter.report_failure(step="Reading File", details={"file_read_error": ["Файл пуст"]})
+            return {
                 "original_row_count": 0,
                 "problematic_row_count": 0,
-                "error_summary": {"file_read_error": [str(e)]},
-            },
+                "error_summary": {"file_read_error": ["Файл пуст"]},
+                "clean_file_path": None,
+            }
+        file_obj.seek(0)
+    except Exception as e:
+        reporter.report_failure(step="Reading File", details={"file_read_error": [str(e)]})
+        return {
+            "original_row_count": 0,
+            "problematic_row_count": 0,
+            "error_summary": {"file_read_error": [str(e)]},
+            "clean_file_path": None,
         }
-        return
-    yields({"step": "Reading File", "status": "SUCCESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(step="Reading File", status=ReportStatus.SUCCESS)
 
     # 2. Header Validation
-    yields({"step": "Header Validation", "status": "IN_PROGRESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(step="Header Validation", status=ReportStatus.IN_PROGRESS)
     try:
         header_df = pd.read_csv(file_obj, sep="\t", engine="c", nrows=0, encoding=encoding)  # Reads only header
         header_errors = validate_required_columns(header_df)
         if header_errors.get("missing_columns"):
-            yields({"step": "Header Validation", "status": "FAILURE", "details": header_errors})
-            yield {
-                "status": "COMPLETE",
-                "result": {
-                    "original_row_count": 0,
-                    "problematic_row_count": 0,
-                    "error_summary": header_errors,
-                },
-            }
-            return
-    except Exception as e:
-        yields({"step": "Header Validation", "status": "FAILURE", "details": {"header_read_error": str(e)}})
-        yield {
-            "status": "COMPLETE",
-            "result": {
+            reporter.report_failure(step="Header Validation", details=header_errors)
+            return {
                 "original_row_count": 0,
                 "problematic_row_count": 0,
-                "error_summary": {"header_read_error": str(e)},
-            },
+                "error_summary": header_errors,
+                "clean_file_path": None,
+            }
+    except Exception as e:
+        reporter.report_failure(step="Header Validation", details={"header_read_error": str(e)})
+        return {
+            "original_row_count": 0,
+            "problematic_row_count": 0,
+            "error_summary": {"header_read_error": str(e)},
+            "clean_file_path": None,
         }
-        return
-    yields({"step": "Header Validation", "status": "SUCCESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(step="Header Validation", status=ReportStatus.SUCCESS)
 
     # --- PHASE 2: CHUNKED VALIDATION (COMPUTATION) ---
-    yields({"step": "Row Integrity & Type Coercion", "status": "IN_PROGRESS"})
-    # time.sleep(PROGRESS_SLEEP_SEC)
-    yields(
-        {
-            "step": "Row Integrity & Type Coercion",
-            "sub_step_name": "Проверка структуры файла",
-            "sub_step_index": 0,
-            "status": "IN_PROGRESS",
-        }
+    reporter.report_step(step="Row Integrity & Type Coercion", status=ReportStatus.IN_PROGRESS)
+    reporter.report_step(
+        step="Row Integrity & Type Coercion",
+        sub_step_name="Проверка структуры файла",
+        sub_step_index=0,
+        status=ReportStatus.IN_PROGRESS,
     )
-    time.sleep(PROGRESS_SLEEP_SEC)
 
     file_obj.seek(0)  # Rewind file before main chunked read
     CHUNKSIZE = 50000
@@ -538,77 +531,65 @@ def validate_file_and_animate_progress(file_obj, task):
 
     # --- PHASE 3: ANIMATE THE RESULTS ---
     status = "FAILURE" if total_structural_errors > 0 else "SUCCESS"
-    yields(
-        {
-            "step": "Row Integrity & Type Coercion",
-            "sub_step_name": "Проверка структуры файла",
-            "sub_step_index": 0,
-            "status": status,
-            "details": {"message": f"Строк с ошибками: {total_structural_errors}" if status == "FAILURE" else "OK"},
-        }
+    reporter.report_step(
+        step="Row Integrity & Type Coercion",
+        sub_step_name="Проверка структуры файла",
+        sub_step_index=0,
+        status=ReportStatus.FAILURE if status == "FAILURE" else ReportStatus.SUCCESS,
+        message=(f"Строк с ошибками: {total_structural_errors}" if status == "FAILURE" else "OK"),
     )
-    time.sleep(PROGRESS_SLEEP_SEC)
 
     has_integrity_errors = total_structural_errors > 0
     for index, check_name in enumerate(integrity_checks):
-        yields(
-            {
-                "step": "Row Integrity & Type Coercion",
-                "sub_step_index": index + 1,
-                "sub_step_name": check_name,
-                "status": "IN_PROGRESS",
-            }
+        reporter.report_step(
+            step="Row Integrity & Type Coercion",
+            sub_step_index=index + 1,
+            sub_step_name=check_name,
+            status=ReportStatus.IN_PROGRESS,
         )
-        time.sleep(PROGRESS_SLEEP_SEC)
         final_count = aggregated_error_counts[check_name]
         status = "FAILURE" if final_count > 0 else "SUCCESS"
         if status == "FAILURE":
             has_integrity_errors = True
-        yields(
-            {
-                "step": "Row Integrity & Type Coercion",
-                "sub_step_index": index + 1,
-                "sub_step_name": check_name,
-                "status": status,
-                "details": {"message": f"Строк с ошибками: {final_count}" if status == "FAILURE" else "OK"},
-            }
+        reporter.report_step(
+            step="Row Integrity & Type Coercion",
+            sub_step_index=index + 1,
+            sub_step_name=check_name,
+            status=ReportStatus.FAILURE if status == "FAILURE" else ReportStatus.SUCCESS,
+            message=(f"Строк с ошибками: {final_count}" if status == "FAILURE" else "OK"),
         )
-        time.sleep(PROGRESS_SLEEP_SEC)
 
-    yields({"step": "Row Integrity & Type Coercion", "status": "FAILURE" if has_integrity_errors else "SUCCESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(
+        step="Row Integrity & Type Coercion",
+        status=ReportStatus.FAILURE if has_integrity_errors else ReportStatus.SUCCESS,
+    )
 
     # 4. Business Rule Validation
-    yields({"step": "Business Rule Validation", "status": "IN_PROGRESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(step="Business Rule Validation", status=ReportStatus.IN_PROGRESS)
     has_business_errors = False
     for index, check_name in enumerate(business_checks):
-        yields(
-            {
-                "step": "Business Rule Validation",
-                "sub_step_index": index,
-                "sub_step_name": check_name,
-                "status": "IN_PROGRESS",
-            }
+        reporter.report_step(
+            step="Business Rule Validation",
+            sub_step_index=index,
+            sub_step_name=check_name,
+            status=ReportStatus.IN_PROGRESS,
         )
-        time.sleep(PROGRESS_SLEEP_SEC)
         final_count = aggregated_error_counts.get(check_name, 0)
         status = "FAILURE" if final_count > 0 else "SUCCESS"
         if status == "FAILURE":
             has_business_errors = True
-        yields(
-            {
-                "step": "Business Rule Validation",
-                "sub_step_index": index,
-                "sub_step_name": check_name,
-                "status": status,
-                "details": {"message": f"Строк с ошибками: {final_count}" if status == "FAILURE" else "OK"},
-            }
+        reporter.report_step(
+            step="Business Rule Validation",
+            sub_step_index=index,
+            sub_step_name=check_name,
+            status=ReportStatus.FAILURE if status == "FAILURE" else ReportStatus.SUCCESS,
+            message=(f"Строк с ошибками: {final_count}" if status == "FAILURE" else "OK"),
         )
-        time.sleep(PROGRESS_SLEEP_SEC)
 
-    yields({"step": "Business Rule Validation", "status": "FAILURE" if has_business_errors else "SUCCESS"})
-    time.sleep(PROGRESS_SLEEP_SEC)
+    reporter.report_step(
+        step="Business Rule Validation",
+        status=ReportStatus.FAILURE if has_business_errors else ReportStatus.SUCCESS,
+    )
 
     # 5. Final Result
     for name in integrity_checks:
@@ -616,18 +597,15 @@ def validate_file_and_animate_progress(file_obj, task):
     for name in business_checks:
         final_errors["business_errors"][name] = aggregated_error_counts[name]
 
-    yield {
-        "status": "COMPLETE",
-        "result": {
-            "original_row_count": total_rows_processed + 1,  # Add 1 for header
-            "problematic_row_count": (total_data_lines - total_rows_processed) + len(all_problematic_indices),
-            "error_summary": final_errors,
-            "clean_file_path": str(clean_file_path) if clean_file_path else None,
-        },
+    return {
+        "original_row_count": total_rows_processed + 1,  # Add 1 for header
+        "problematic_row_count": (total_data_lines - total_rows_processed) + len(all_problematic_indices),
+        "error_summary": final_errors,
+        "clean_file_path": str(clean_file_path) if clean_file_path else None,
     }
 
 
-def insert_data_to_clickhouse(df: pd.DataFrame, task=None) -> tuple[bool, str]:
+def insert_data_to_clickhouse(df: pd.DataFrame, reporter: ProgressReporter | None = None) -> tuple[bool, str]:
     """
     Inserts a DataFrame into the `sup_stat.emex_dif` table in ClickHouse,
     optionally reporting progress back to a Celery task.
@@ -636,23 +614,24 @@ def insert_data_to_clickhouse(df: pd.DataFrame, task=None) -> tuple[bool, str]:
     if total_rows == 0:
         return True, "Нет данных для загрузки."
 
+    # Reporter is provided by the caller (task orchestrator)
+
     try:
         with get_clickhouse_client(readonly=0) as client:
             # Insert in chunks to allow for progress reporting
             for i in range(0, total_rows, INSERT_CHUNK_SIZE):
-                chunk = df.iloc[i:i + INSERT_CHUNK_SIZE]
+                chunk = df.iloc[i : i + INSERT_CHUNK_SIZE]
                 client.insert_df("sup_stat.emex_dif", chunk)
 
-                if task:
+                if reporter:
                     processed_rows = i + len(chunk)
                     progress = int((processed_rows / total_rows) * 100)
-                    task.update_state(
-                        state='PROGRESS',
-                        meta={'step': 'INSERTING', 'status': 'IN_PROGRESS', 'progress': progress}
-                    )
-            
+                    reporter.report_percentage(step="INSERTING", progress=progress)
+
             return True, f"Успешно загружено {total_rows} строк."
 
     except Exception as e:
         logger.error("An error occurred with ClickHouse operation: {}\n", e)
+        if reporter:
+            reporter.report_failure(step="INSERTING", details={"error": str(e)})
         return False, f"Failed to insert data: {e}"

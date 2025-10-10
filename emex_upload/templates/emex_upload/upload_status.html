@@ -203,8 +203,9 @@
     }
 
     function handleProgressUpdate(payload) {
-        const { step, status, details, sub_step_index } = payload;
-        if (sub_step_index !== undefined) {
+        const { step, status, details, sub_step_index, sub_step_name } = payload;
+        // Handle sub-steps only when index is a real number (not undefined/null)
+        if (sub_step_index !== undefined && sub_step_index !== null) {
             const parentIdMap = {
                 'row integrity & type coercion': 'sub-steps-row-integrity',
                 'business rule validation': 'sub-steps-business-rules'
@@ -214,8 +215,9 @@
                 const parentUl = document.getElementById(parentUlId);
                 const subStepElement = parentUl.children[sub_step_index];
                 updateSubStepItem(subStepElement, status, details);
+                return; // handled sub-step
             }
-            return;
+            // if no parent UL, fall through to parent-step update
         }
         const stepToIdMap = {
             'reading file': 'timeline-step-reading-file',
