@@ -303,25 +303,36 @@ Purpose
 Persist results (TTL 4 months), export Excel in the wide “top-10 suppliers” layout your users expect, and delete exports older than 5 days.
 ---
 ClickHouse DDL (final)
-CREATE TABLE IF NOT EXISTS sup_stat.parser_offers
+```sql
+-- dif.stparts_percentage definition
+
+CREATE TABLE dif.stparts_percentage
 (
-  run_id         UUID,
-  fetched_at     DateTime DEFAULT now(),
-  source         LowCardinality(String),
-  brand          String,
-  article        String,
-  name           String,
-  price          Decimal(12,2),
-  quantity       UInt32,
-  supplier       String,
-  rating         Nullable(UInt8),      -- 0..100 where available
-  deadline_days  UInt16,
-  is_analog      UInt8
+    `b` String, -- brand
+    `a` String,  -- article
+    `price` Float64,
+    `quantity` Int32,
+    `delivery` Int32, -- deadline days
+    `provider` String,  -- supplier
+    `rating` Nullable(UInt8),      -- 0..100 where available
+    `name` String,
+    `created_at` DateTime DEFAULT now(),
+    `is_analog` UInt8,
+    `run_id` UUID,
 )
-ENGINE = MergeTree
-ORDER BY (article, source, supplier, price, deadline_days, fetched_at)
-TTL fetched_at + INTERVAL 4 MONTH
+ENGINE = ReplacingMergeTree
+ORDER BY (b,
+ a,
+ price,
+ quantity,
+ delivery,
+ provider,
+ rating,
+ name,
+ toDate(created_at))
+TTL created_at + toIntervalMonth(12)
 SETTINGS index_granularity = 8192;
+```
 
 Notes
 run_id groups a single job execution; fetched_at drives TTL.

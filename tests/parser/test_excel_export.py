@@ -95,7 +95,7 @@ def test_export_offers_xlsx(sample_offers, tmp_path):
     file_path = export_offers_xlsx(run_id, source, df_wide, tmp_path)
 
     assert file_path.exists()
-    assert file_path.name == f"{run_id}.xlsx"
+    assert file_path.name == f"stparts_{run_id}.xlsx"
 
     # --- Verify Excel content and formatting --- #
     wb = openpyxl.load_workbook(file_path)

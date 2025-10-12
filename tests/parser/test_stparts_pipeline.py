@@ -39,7 +39,7 @@ HTML_FOR_TOP_10_TEST = """
 
 # HTML fixture for testing the redirect link
 HTML_WITH_REDIRECT_LINK = """
-<a href="/final-results-page">Показать все варианты</a>
+<a href="/search/Brand/TESTCODE?disableFiltering">Показать все варианты</a>
 """
 
 HTML_FINAL_RESULTS = """
@@ -100,7 +100,7 @@ async def test_pipeline_follows_redirect_link(mock_proxy_pool):
     async def fetch_side_effect(url, params=None):
         if url == "https://stparts.ru/search":
             return HTML_WITH_REDIRECT_LINK
-        elif url == "https://stparts.ru/final-results-page":
+        elif url == "https://stparts.ru/search/Brand/TESTCODE?disableFiltering":
             return HTML_FINAL_RESULTS
         return ""
 
@@ -113,7 +113,7 @@ async def test_pipeline_follows_redirect_link(mock_proxy_pool):
     # First call is to the initial search page
     assert mock_session.fetch_html.call_args_list[0].kwargs["params"] == {"pcode": "TESTCODE"}
     # Second call is to the redirect link
-    assert mock_session.fetch_html.call_args_list[1].args[0] == "https://stparts.ru/final-results-page"
+    assert mock_session.fetch_html.call_args_list[1].args[0] == "https://stparts.ru/search/Brand/TESTCODE?disableFiltering"
     assert len(results) == 1
     assert results[0].price == 99.0
 

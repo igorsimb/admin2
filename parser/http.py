@@ -2,6 +2,7 @@
 
 import asyncio
 import random
+from enum import Enum
 from itertools import cycle
 from typing import Any, TypedDict
 from urllib.parse import parse_qs, urlparse
@@ -18,7 +19,20 @@ class Proxy(TypedDict):
     port: int
     username: str
     password: str
+    proxy_type: str
 
+
+class ProxyType(Enum):
+    """
+    Used in proxy_list table (proxy_type column).
+    """
+    DCV6_DEDICATED = "datacenter_ipv6_dedicated"
+    DCV4_SHARED = "datacenter_ipv4_shared"
+    DCV4_DEDICATED = "datacenter_ipv4_dedicated"
+    MOBILE_DEDICATED = "mobile_dedicated"
+    MOBILE_SHARED = "mobile_shared"
+    RESIDENTIAL_SHARED = "residential_shared"
+    RESIDENTIAL_DEDICATED = "residential_dedicated"
 
 # --- DB Connection Details ---
 DB_CONFIG = {
@@ -30,15 +44,27 @@ DB_CONFIG = {
 }
 
 
-async def get_proxies_from_db() -> list[Proxy]:
+async def get_proxies_from_db(proxy_type: ProxyType | None = None) -> list[Proxy]:
     """
     Fetches a list of available proxy servers from the external PostgreSQL database.
+
+    Args:
+        proxy_type: An optional filter to fetch only proxies of a specific type.
     """
     conn = None
     try:
         conn = await asyncpg.connect(**DB_CONFIG)
-        records = await conn.fetch("SELECT ip, port, username, password FROM proxy_list WHERE availability = TRUE")
-        logger.debug(f"Fetched {len(records)} proxies from the external database.")
+
+        query = "SELECT ip, port, username, password, proxy_type FROM proxy_list WHERE availability = TRUE"
+        params = []
+
+        if proxy_type:
+            query += " AND proxy_type = $1"
+            params.append(proxy_type.value)
+
+        records = await conn.fetch(query, *params)
+
+        logger.debug(f"Fetched {len(records)} proxies from the external database for type: {proxy_type or 'any'}.")
         # The records from asyncpg are list-like and dict-like.
         return [dict(record) for record in records]
     except (asyncpg.PostgresError, OSError) as e:  # OSError can happen on connection failure
