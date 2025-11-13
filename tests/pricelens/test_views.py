@@ -10,10 +10,6 @@ from tests.factories import CadenceProfileFactory, InvestigationFactory, UserFac
 
 
 class TestDashboardView:
-    @pytest.fixture
-    def user(self):
-        return UserFactory()
-
     def test_dashboard_view_get_success(self, client, user):
         """Test that the DashboardView returns a 200 OK response."""
         client.force_login(user)
@@ -47,10 +43,6 @@ class TestDashboardView:
 
 @pytest.mark.django_db
 class TestQueueView:
-    @pytest.fixture
-    def user(self):
-        return UserFactory()
-
     def test_queue_view_get_success(self, client, user):
         """Test that the QueueView returns a 200 OK response."""
         client.force_login(user)
@@ -104,10 +96,6 @@ class TestQueueView:
 @pytest.mark.django_db
 class TestInvestigationDetailView:
     @pytest.fixture
-    def user(self):
-        return UserFactory()
-
-    @pytest.fixture
     def investigation(self):
         return InvestigationFactory()
 
@@ -146,11 +134,6 @@ class TestInvestigationDetailView:
 
 @pytest.mark.django_db
 class TestCadenceView:
-    @pytest.fixture
-    def user(self):
-        """Fixture for creating a user."""
-        return UserFactory()
-
     @pytest.fixture
     def cadence_profiles(self):
         """Fixture for creating a batch of cadence profiles for testing filtering."""

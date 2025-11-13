@@ -1,4 +1,5 @@
 import pytest
+from tests.fixtures import *
 
 """
 Global pytest configuration file.
