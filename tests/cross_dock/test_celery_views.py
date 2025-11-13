@@ -17,14 +17,6 @@ User = get_user_model()
 
 
 @pytest.fixture
-def authenticated_user(client):
-    """Create an authenticated user."""
-    user = User.objects.create_user(username="testuser", password="testpass")
-    client.login(username="testuser", password="testpass")
-    return user
-
-
-@pytest.fixture
 def excel_file():
     """Create a simple Excel file for testing."""
     content = b"PK\x03\x04\x14\x00\x00\x00\x08\x00\x00\x00!\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
