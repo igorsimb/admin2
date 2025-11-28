@@ -9,7 +9,7 @@ from common.utils.clickhouse import get_clickhouse_client
 from core.reporting import ProgressReporter, ReportStatus
 
 PROGRESS_SLEEP_SEC = 1
-INSERT_CHUNK_SIZE = 500
+INSERT_CHUNK_SIZE = 50000
 
 # External-to-internal column mapping (Russian -> snake_case)
 COLUMN_MAPPING: Final[dict[str, str]] = {
