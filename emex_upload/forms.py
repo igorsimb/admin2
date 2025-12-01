@@ -8,6 +8,6 @@ class FileUploadForm(forms.Form):
 
     file = forms.FileField(
         widget=forms.ClearableFileInput(
-            attrs={"class": "file-input file-input-bordered w-full"}
+            attrs={"class": "file-input file-input-bordered w-full", "accept": ".txt"}
         )
     )

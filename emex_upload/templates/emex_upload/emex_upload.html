@@ -32,7 +32,7 @@
 
     <div class="card-body items-center text-center p-0">
         <h2 class="card-title text-2xl font-bold mb-4">Загрузка данных Emex</h2>
-        <p class="mb-6 text-base-content/60">Выберите txt-файл для загрузки и обработки (макс. размер 1GB).</p>
+        <p class="mb-6 text-base-content/60">Выберите 📄 txt-файл для загрузки и обработки (макс. размер 1GB).</p>
 
         <form action="{% url 'emex_upload:upload' %}" method="post" enctype="multipart/form-data" class="w-full max-w-md" id="upload-form">
             {% csrf_token %}
@@ -45,6 +45,22 @@
             </div>
             <div id="loading-text" class="mt-4 hidden text-gray-500">⏳ Загрузка...</div>
         </form>
+
+        <div class="collapse bg-base-200 border-base-300 border mt-6 w-full max-w-md hover:bg-base-300 transition-colors duration-200">
+            <input type="checkbox" />
+            <div class="collapse-title font-semibold hover:bg-base-300 transition-colors duration-200">
+                ▸ Ожидаемый формат txt-файла
+            </div>
+            <div class="collapse-content text-sm overflow-x-auto text-left">
+<pre>
+Дата                Арт             Бренд   ЛогоПоставщика  ЛогоПрайса  ИННПоставщика   НаименованиПоставщика   Количество  ЦенаПокупки СуммаПокупки    ЦенаПродажи СуммаПродажи    Склад   ЛогоКлиента ИННКлиента  НазваниеКлиента
+2025-11-01 00:01:13 3000628         Metaco  JNJQ            JNJQ        7714898801      ООО ЮРАЛ                1           3385,49     3385,49         3637,2      3637,2          ДА      MOS3        7735581530  ООО ЕМЕХ-авто
+2025-11-01 00:01:13 44111C6RLDEM2   Depo    TDVN            TDVV        5027256859      ООО ПАРЕТОПАРТС         1           7705,61     7705,61         8269,8      8269,8          ДА      MOS3        7735581530  ООО ЕМЕХ-авто
+2025-11-01 00:01:13 44111G6LMLDEM2  Depo    KRTN            KRTW        7721844807      ООО А.П.Р.              1           8847,89     8847,89         9493,2      9493,2          ДА      MOS3        7735581530  ООО ЕМЕХ-авто
+2025-11-01 00:01:13 4412038LUE      Depo    MART            MART        7720749068      ООО ШАТЕ-М ПЛЮС         1           2062,58     2062,58         2220        2220            ДА      MOS3        7735581530  ООО ЕМЕХ-авто
+</pre>
+            </div>
+        </div>
     </div>
 </div>
 
