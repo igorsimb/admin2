@@ -20,6 +20,7 @@ urlpatterns = [
     path("pricelens/", include("pricelens.urls")),
     path("api/v1/pricelens/", include("pricelens.urls_api")),
     path("emex-upload/", include("emex_upload.urls")),
+    path("parser/", include("parser.urls")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

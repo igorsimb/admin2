@@ -44,9 +44,11 @@ def get_clickhouse_client(readonly: int = 1):
         except Exception as e:
             logger.error(f"Database query failed: {e}")
     """
-    host = getattr(settings, "CLICKHOUSE_HOST", DEFAULT_CLICKHOUSE_HOST)
+    # host = getattr(settings, "CLICKHOUSE_HOST", DEFAULT_CLICKHOUSE_HOST)
     user = getattr(settings, "CLICKHOUSE_USER", DEFAULT_CLICKHOUSE_USER)
-    password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
+    # password = getattr(settings, "CLICKHOUSE_PASSWORD", DEFAULT_CLICKHOUSE_PASSWORD)
+    host = '87.249.37.86'
+    password = "5483"
 
     client = clickhouse_connect.get_client(host=host, username=user, password=password, settings={"readonly": readonly})
     logger.debug(f"Connecting to ClickHouse at {host}...")
