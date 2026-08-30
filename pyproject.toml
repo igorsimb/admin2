@@ -28,7 +28,14 @@ dependencies = [
     "pandas>=2.2.3",
     "pillow>=11.2.1",
     "psycopg[binary,pool]>=3.2.9",
+    "pydantic>=2.12.0",
     "redis>=6.1.0",
+    "httpx[http2]>=0.27.0",
+    "selectolax>=0.4.0",
+    "xlsxwriter>=3.2.9",
+    "asyncpg>=0.30.0",
+    "tqdm>=4.67.1",
+    "playwright>=1.55.0",
 ]
 
 [tool.uv]
@@ -41,6 +48,7 @@ dev = [
     "faker>=37.1.0",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
+    "pytest-asyncio>=1.2.0",
     "pytest-django>=4.11.1",
     "pytest-xdist>=3.6.1",
     "ruff>=0.11.8",

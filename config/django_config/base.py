@@ -34,12 +34,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     # Local apps
-    "core.apps.CoreConfig",
     "accounts.apps.UsersConfig",
-    "cross_dock.apps.CrossDockConfig",
-    "pricelens.apps.PricelensConfig",
     "common.apps.CommonConfig",
+    "core.apps.CoreConfig",
+    "cross_dock.apps.CrossDockConfig",
     "emex_upload",
+    "parser",
+    "pricelens.apps.PricelensConfig",
 ]
 
 # Django Rest Framework
