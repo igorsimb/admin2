@@ -111,6 +111,32 @@ class TestExcelService:
         mock_save.assert_not_called()
 
 
+@pytest.mark.parametrize("failure", ["query", "input", "export"])
+def test_fast_report_does_not_save_incomplete_workbook(failure):
+    data = [{"Бренд": "BOSCH", "Артикул": "123"}]
+    with (
+        mock.patch("cross_dock.services.clickhouse_service.query_supplier_data_mv") as mock_query,
+        mock.patch("cross_dock.services.excel_service.save_workbook") as mock_save,
+    ):
+        if failure == "query":
+            mock_query.side_effect = RuntimeError("Query failed")
+            expected_error = RuntimeError
+        elif failure == "input":
+            data = [{"Бренд": "BOSCH"}]
+            expected_error = KeyError
+        else:
+            mock_query.return_value = pd.DataFrame(
+                [("invalid price", 5, "Supplier A", "bosch", "123")],
+                columns=["price", "quantity", "supplier_name", "brand_lower", "sku_lower"],
+            )
+            expected_error = ValueError
+
+        with pytest.raises(expected_error):
+            process_cross_dock_data(data, "ОПТ-2", use_mv=True)
+
+    mock_save.assert_not_called()
+
+
 def test_slow_report_preserves_duplicate_rows_and_input_whitespace(settings, tmp_path):
     from types import SimpleNamespace
 

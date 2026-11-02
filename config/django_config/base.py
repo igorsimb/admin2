@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_htmx",
+    "widget_tweaks",
     "rest_framework",
     "rest_framework.authtoken",
     # Local apps
@@ -71,7 +72,8 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # Project account templates must override allauth's built-in templates.
+        "DIRS": [BASE_DIR / "accounts" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

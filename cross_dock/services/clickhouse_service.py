@@ -182,7 +182,7 @@ def query_supplier_data_mv(
 
         with get_clickhouse_client() as client:
             logger.info(f"[MV-BATCH] Executing batch MV query for {len(brand_sku_pairs)} pairs.")
-            result = client.execute(query, query_params)
+            result = client.query(query, parameters=query_params).result_rows
             logger.info(f"[MV-BATCH] Query executed successfully, got {len(result)} results")
 
         if result:
@@ -196,4 +196,4 @@ def query_supplier_data_mv(
 
     except Exception as e:
         logger.exception(f"[MV-BATCH] Error querying supplier data in batch: {e}")
-        return empty_df
+        raise

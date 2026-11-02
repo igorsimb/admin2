@@ -1,7 +1,7 @@
 """Read cross-dock input files and export up to three supplier offers per row.
 
-Slow reports preserve parser selection and fail on query errors so incomplete output
-is not presented as a successful report. Fast reports use the existing MV batch path.
+Reports fail on query or export errors so incomplete output is not presented as a
+successful report. Slow uses parser selection; Fast uses the existing MV batch path.
 """
 
 import logging
@@ -61,7 +61,6 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
 
     total_rows = len(data)
     processed_rows = 0
-    error_count = 0
 
     if use_mv:
         # Extract all unique (brand, sku) pairs (normalized)
@@ -72,7 +71,8 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
                 article = str(item["Артикул"]).strip().lower()
                 brand_sku_pairs.add((brand, article))
             except Exception as e:
-                logger.error(f"Error extracting brand/sku from item: {item}, error: {e}")
+                logger.exception(f"Error extracting brand/sku from item: {item}, error: {e}")
+                raise
         brand_sku_pairs = list(brand_sku_pairs)
         # Query all at once
         from cross_dock.services.clickhouse_service import query_supplier_data_mv
@@ -94,15 +94,8 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
                 if row_num % 100 == 0:
                     logger.info(f"Processing row {row_num - 1}/{total_rows}: {brand}, {article}")
             except KeyError as e:
-                if not use_mv:
-                    raise
                 logger.error(f"KeyError in row {row_num - 1}: {e}. Item keys: {item.keys()}")
-                error_count += 1
-                for i in range(3):
-                    col_offset = i * 3
-                    for c in range(4, 7):
-                        result_sheet.cell(row=row_num, column=c + col_offset, value=None)
-                continue
+                raise
 
             sku = f"{brand}|{article}"
             result_sheet.cell(row=row_num, column=1, value=sku)
@@ -145,15 +138,8 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
                         result_sheet.cell(row=row_num, column=5 + col_offset, value=None)
                         result_sheet.cell(row=row_num, column=6 + col_offset, value=None)
             except Exception as e:
-                if not use_mv:
-                    raise
-                logger.error(f"Error processing row {row_num}: {e}")
-                error_count += 1
-                for i in range(3):
-                    col_offset = i * 3
-                    result_sheet.cell(row=row_num, column=4 + col_offset, value=None)
-                    result_sheet.cell(row=row_num, column=5 + col_offset, value=None)
-                    result_sheet.cell(row=row_num, column=6 + col_offset, value=None)
+                logger.exception(f"Error processing row {row_num}: {e}")
+                raise
 
             processed_rows += 1
 
@@ -163,7 +149,7 @@ def process_cross_dock_data(data: list[dict[str, str]], supplier_list: str, use_
     logger.info(f"Workbook saved successfully, URL: {file_url}")
 
     progress = "100%"
-    logger.info(f"Summary: Processed {processed_rows} rows, encountered {error_count} errors.")
+    logger.info(f"Summary: Processed {processed_rows} rows.")
     return progress, file_url
 
 

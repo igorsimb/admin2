@@ -7,7 +7,7 @@ from unittest import mock
 import pytest
 from clickhouse_connect.driver.httpclient import HttpClient
 
-from cross_dock.services.clickhouse_service import query_supplier_data, supplier_query_session
+from cross_dock.services.clickhouse_service import query_supplier_data, query_supplier_data_mv, supplier_query_session
 
 # Reference: parser/src/flask_api/tasks.py, process_data(), captured 2026-11-02.
 PARSER_PRICE_QUERY = """
@@ -104,3 +104,21 @@ def test_query_failures_propagate_instead_of_becoming_empty_offers(mock_client, 
 
     with pytest.raises(RuntimeError, match="ClickHouse unavailable"):
         query_supplier_data("BRAND", "ARTICLE", "ОПТ-2")
+
+
+@pytest.mark.parametrize("offers", [[], [(100.0, 5, "Supplier A", "bosch", "123")]])
+def test_fast_query_reads_rows_through_real_client_interface(mock_client, offers):
+    mock_client.query.return_value = SimpleNamespace(result_rows=offers)
+
+    result = query_supplier_data_mv([("bosch", "123")], "ОПТ-2")
+
+    assert list(result.itertuples(index=False, name=None)) == offers
+    assert list(result.columns) == ["price", "quantity", "supplier_name", "brand_lower", "sku_lower"]
+    assert mock_client.query.call_args.kwargs["parameters"]["brand_sku_pairs"] == [("bosch", "123")]
+
+
+def test_fast_query_failure_is_not_reported_as_no_offers(mock_client):
+    mock_client.query.side_effect = RuntimeError("ClickHouse unavailable")
+
+    with pytest.raises(RuntimeError, match="ClickHouse unavailable"):
+        query_supplier_data_mv([("bosch", "123")], "ОПТ-2")

@@ -68,15 +68,18 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
 
         # Check that Celery task was called
         mock_delay.assert_called_once()
-        args, kwargs = mock_delay.call_args
+        kwargs = mock_delay.call_args.kwargs
         assert kwargs["supplier_list"] == "ОПТ-2"
         assert kwargs["task_id"] == str(task.id)
         assert "file_path" in kwargs
 
 
-@pytest.mark.parametrize("failure_stage", ["connection", "suppliers", "offers"])
+@pytest.mark.parametrize(
+    ("use_mv", "failure_stage"),
+    [("0", "connection"), ("0", "suppliers"), ("0", "offers"), ("1", "connection"), ("1", "offers")],
+)
 def test_clickhouse_failure_remains_visible_in_task_list(
-    client, authenticated_user, excel_file, settings, tmp_path, failure_stage
+    client, authenticated_user, excel_file, settings, tmp_path, use_mv, failure_stage
 ):
     settings.MEDIA_ROOT = tmp_path
     mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
@@ -87,10 +90,12 @@ def test_clickhouse_failure_remains_visible_in_task_list(
         else:
             mock_get.return_value.__enter__.return_value = mock_http
             mock_http.query.side_effect = (
-                [error] if failure_stage == "suppliers" else [SimpleNamespace(result_rows=[(1,)]), error]
+                [error]
+                if use_mv == "1" or failure_stage == "suppliers"
+                else [SimpleNamespace(result_rows=[(1,)]), error]
             )
         response = client.post(
-            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": "0"}
+            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": use_mv}
         )
 
     assert response.status_code == 302
@@ -103,27 +108,37 @@ def test_clickhouse_failure_remains_visible_in_task_list(
     assert task in listing.context["tasks"]
 
 
-def test_slow_upload_queries_and_exports_numeric_article(client, authenticated_user, excel_file, settings, tmp_path):
+@pytest.mark.parametrize("use_mv", [False, True])
+def test_upload_queries_and_exports_numeric_article(client, authenticated_user, excel_file, settings, tmp_path, use_mv):
     settings.MEDIA_ROOT = tmp_path
     mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
-    mock_http.query.side_effect = [
-        SimpleNamespace(result_rows=[(1,)]),
-        SimpleNamespace(result_rows=[(123.5, 4, "Supplier A")]),
-    ]
+    if use_mv:
+        mock_http.query.return_value = SimpleNamespace(result_rows=[(123.5, 4, "Supplier A", "bosch", "12345")])
+    else:
+        mock_http.query.side_effect = [
+            SimpleNamespace(result_rows=[(1,)]),
+            SimpleNamespace(result_rows=[(123.5, 4, "Supplier A")]),
+        ]
     with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
         mock_get.return_value.__enter__.return_value = mock_http
         response = client.post(
-            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": "0"}
+            reverse("cross_dock:process_file"),
+            {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": "1" if use_mv else "0"},
         )
 
     assert response.status_code == 302
     task = CrossDockTask.objects.get()
     assert task.status == "SUCCESS"
-    assert mock_http.query.call_args.kwargs["parameters"]["sku_lower"] == "12345"
+    parameters = mock_http.query.call_args.kwargs["parameters"]
+    if use_mv:
+        assert parameters["brand_sku_pairs"] == [("bosch", "12345")]
+    else:
+        assert parameters["sku_lower"] == "12345"
     from openpyxl import load_workbook
 
     workbook = load_workbook(next((tmp_path / "exports").glob("*.xlsx")))
-    assert list(workbook.active.values)[1][:6] == ("BOSCH|12345", "BOSCH", "12345", 123.5, 4, "Supplier A")
+    expected_article = 12345 if use_mv else "12345"
+    assert list(workbook.active.values)[1][:6] == ("BOSCH|12345", "BOSCH", expected_article, 123.5, 4, "Supplier A")
 
 
 def test_task_detail_view(client, authenticated_user):
