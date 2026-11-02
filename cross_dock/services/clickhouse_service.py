@@ -1,10 +1,10 @@
-"""Select supplier offers for cross-dock reports from source data or the MV.
+"""Select the same supplier offers from live source data or the refreshed snapshot.
 
-The Slow report shares one connection and supplier selection across all input rows.
-Its selection rules follow parser's percentage report; query errors propagate to the task.
+SLOW resolves source replacements with FINAL. FAST reads the last completed RMV
+refresh. Both use current supplier metadata and identical eligibility and ranking.
+Input brand aliases are normalized once by the report service before querying.
 """
 
-import logging
 from contextlib import contextmanager
 from functools import partial
 
@@ -12,25 +12,28 @@ import pandas as pd
 
 from common.utils.clickhouse import get_clickhouse_client
 
-logger = logging.getLogger(__name__)
-
 DAYS_LOOKBACK = 2
+OFFER_COLUMNS = ["price", "quantity", "supplier_name"]
+PAIR_COLUMNS = [*OFFER_COLUMNS, "brand", "sku"]
+
+
+def _supplier_ids(client, supplier_list: str) -> tuple[int, ...]:
+    result = client.query(
+        "SELECT dif_id FROM sup_stat.sup_list FINAL WHERE has(lists, %(supplier_list)s)",
+        parameters={"supplier_list": supplier_list},
+    )
+    return tuple(row[0] for row in result.result_rows)
 
 
 @contextmanager
 def supplier_query_session(supplier_list: str):
-    """Resolve the supplier group once and keep its connection open for the report."""
+    """Resolve the supplier group once and reuse its connection for SLOW rows."""
     with get_clickhouse_client() as client:
-        result = client.query(
-            "SELECT DISTINCT dif_id FROM sup_stat.sup_list WHERE has(lists, %(supplier_list)s)",
-            parameters={"supplier_list": supplier_list},
-        )
-        supplier_ids = tuple(row[0] for row in result.result_rows)
-        yield partial(_query_supplier_data, client, supplier_ids)
+        yield partial(_query_supplier_data, client, _supplier_ids(client, supplier_list))
 
 
 def query_supplier_data(brand: str, sku: str, supplier_list: str, days_lookback: int = DAYS_LOOKBACK) -> pd.DataFrame:
-    """Query a single pair; reports use supplier_query_session to reuse the supplier lookup."""
+    """Query one canonical brand/SKU pair from the source with FINAL."""
     with supplier_query_session(supplier_list) as query:
         return query(brand, sku, days_lookback=days_lookback)
 
@@ -38,162 +41,65 @@ def query_supplier_data(brand: str, sku: str, supplier_list: str, days_lookback:
 def _query_supplier_data(
     client, supplier_ids: tuple[int, ...], brand: str, sku: str, days_lookback: int = DAYS_LOOKBACK
 ) -> pd.DataFrame:
-    columns = ["price", "quantity", "supplier_name"]
-    if not supplier_ids:
-        return pd.DataFrame(columns=columns)
-
-    brand = str(brand).lower()
-    sku = str(sku).lower()
-    brand_values = ("hyundai/kia", "hyundai/kia/mobis") if brand in ("hyundai/kia", "hyundai/kia/mobis") else (brand,)
-
-    query = """
-    WITH recent_prices AS (
-        SELECT DISTINCT
-            df.p as price,
-            df.q as quantity,
-            sl.name as supplier_name,
-            df.dateupd,
-            ROW_NUMBER() OVER (PARTITION BY sl.name ORDER BY df.dateupd DESC) AS rn
-        FROM
-            sup_stat.dif_step_1 AS df
-        INNER JOIN
-            sup_stat.sup_list AS sl
-        ON
-            df.supid = sl.dif_id
-        WHERE
-            lower(df.a) = %(sku_lower)s
-            AND lower(df.b) IN %(brand_values)s
-            AND df.dateupd >= now() - interval %(days_lookback)s day
-            AND df.supid IN %(supplier_ids)s
-            AND df.q > 0
-    ),
-    ranked_suppliers AS (
-        SELECT DISTINCT
-            price,
-            quantity,
-            supplier_name,
-            ROW_NUMBER() OVER (PARTITION BY supplier_name ORDER BY price ASC) AS rank
-        FROM recent_prices
-        WHERE rn = 1
-    )
-    SELECT
-        price,
-        quantity,
-        supplier_name
-    FROM
-        ranked_suppliers
-    WHERE
-        rank = 1
-    ORDER BY
-        price ASC
-    LIMIT 3;
-    """
-    result = client.query(
-        query,
-        parameters={
-            "sku_lower": sku,
-            "brand_values": brand_values,
-            "supplier_ids": supplier_ids,
-            "days_lookback": days_lookback,
-        },
-    )
-    return pd.DataFrame(result.result_rows, columns=columns)
+    pairs = [(str(brand).strip().upper(), str(sku).strip().upper())]
+    return _query_supplier_pairs(client, supplier_ids, pairs, days_lookback, use_mv=False)[OFFER_COLUMNS]
 
 
 def query_supplier_data_mv(
     brand_sku_pairs: list[tuple[str, str]], supplier_list: str, days_lookback: int = DAYS_LOOKBACK
 ) -> pd.DataFrame:
-    """
-    Query ClickHouse Materialized View for supplier data for a batch of (brand, sku) pairs.
-
-    Args:
-        brand_sku_pairs: List of (brand, sku) tuples (all lowercase, deduplicated)
-        supplier_list: Supplier list to query
-        days_lookback: Number of days to look back for supplier data (default: DAYS_LOOKBACK)
-
-    Returns:
-        DataFrame with columns: price, quantity, supplier_name, brand_lower, sku_lower
-        Contains up to 3 suppliers per (brand, sku) pair, sorted by price
-    """
-    logger.info(
-        f"[MV-BATCH] Querying supplier data for {len(brand_sku_pairs)} (brand, sku) pairs with supplier list {supplier_list}, days_lookback={days_lookback}"
-    )
-    empty_df = pd.DataFrame(columns=["price", "quantity", "supplier_name", "brand_lower", "sku_lower"])
-
+    """Query up to three offers per canonical brand/SKU pair from the RMV snapshot."""
     if not brand_sku_pairs:
-        logger.warning("[MV-BATCH] No (brand, sku) pairs provided.")
-        return empty_df
-
-    try:
-        query = """
-        -- First get the list of valid supplier names for this supplier_list
-        WITH valid_supplier_names AS (
-            SELECT DISTINCT name 
-            FROM sup_stat.sup_list
-            WHERE has(lists, %(supplier_list)s)
-        ),
-        -- Then get the most recent prices from the MV
-        recent_prices AS (
-            SELECT 
-                m.price,
-                m.quantity,
-                m.supplier_name,
-                m.brand_lower,
-                m.sku_lower,
-                ROW_NUMBER() OVER (
-                    PARTITION BY m.brand_lower, m.sku_lower, m.supplier_name
-                    ORDER BY m.update_date DESC
-                ) AS rn
-            FROM sup_stat.mv_cross_dock m
-            INNER JOIN valid_supplier_names v ON m.supplier_name = v.name
-            WHERE (m.brand_lower, m.sku_lower) IN %(brand_sku_pairs)s
-              AND m.update_date >= now() - interval %(days_lookback)s day
+        return pd.DataFrame(columns=PAIR_COLUMNS)
+    with get_clickhouse_client() as client:
+        return _query_supplier_pairs(
+            client, _supplier_ids(client, supplier_list), brand_sku_pairs, days_lookback, use_mv=True
         )
-        -- Get top 3 suppliers per (brand, sku) by price
+
+
+def _query_supplier_pairs(client, supplier_ids, brand_sku_pairs, days_lookback, *, use_mv: bool) -> pd.DataFrame:
+    pairs = sorted({(str(brand).strip().upper(), str(sku).strip().upper()) for brand, sku in brand_sku_pairs})
+    pairs = [(brand, sku) for brand, sku in pairs if brand and sku]
+    if not supplier_ids or not pairs:
+        return pd.DataFrame(columns=PAIR_COLUMNS)
+
+    # Only the source changes; eligibility and ranking must stay identical in both modes.
+    source = (
+        "SELECT supid, brand, sku, price, quantity, update_date FROM sup_stat.rmv_cross_dock"
+        if use_mv
+        else "SELECT supid, b AS brand, a AS sku, p AS price, q AS quantity, dateupd AS update_date "
+        "FROM sup_stat.dif_step_1 FINAL"
+    )
+    query = f"""
+    WITH recent_prices AS (
         SELECT
-            price,
-            quantity,
-            supplier_name,
-            brand_lower,
-            sku_lower
-        FROM (
-            SELECT
-                price,
-                quantity,
-                supplier_name,
-                brand_lower,
-                sku_lower,
-                ROW_NUMBER() OVER (
-                    PARTITION BY brand_lower, sku_lower
-                    ORDER BY price ASC, supplier_name
-                ) AS rank
-            FROM recent_prices
-            WHERE rn = 1
-        ) 
-        WHERE rank <= 3
-        ORDER BY brand_lower, sku_lower, price ASC, supplier_name;
-        """
-
-        query_params = {
-            "supplier_list": supplier_list,
-            "brand_sku_pairs": brand_sku_pairs,
-            "days_lookback": days_lookback,
-        }
-
-        with get_clickhouse_client() as client:
-            logger.info(f"[MV-BATCH] Executing batch MV query for {len(brand_sku_pairs)} pairs.")
-            result = client.query(query, parameters=query_params).result_rows
-            logger.info(f"[MV-BATCH] Query executed successfully, got {len(result)} results")
-
-        if result:
-            result_df = pd.DataFrame(result, columns=["price", "quantity", "supplier_name", "brand_lower", "sku_lower"])
-            logger.info(f"[MV-BATCH] Created DataFrame with {len(result_df)} rows")
-        else:
-            result_df = empty_df
-            logger.warning(f"[MV-BATCH] No results found for batch query with supplier list {supplier_list}")
-
-        return result_df
-
-    except Exception as e:
-        logger.exception(f"[MV-BATCH] Error querying supplier data in batch: {e}")
-        raise
+            df.price, df.quantity, sl.name AS supplier_name, df.brand, df.sku, df.supid,
+            row_number() OVER (
+                PARTITION BY df.brand, df.sku, df.supid
+                ORDER BY df.update_date DESC, df.price ASC, df.quantity DESC
+            ) AS offer_rank
+        FROM ({source}) AS df
+        INNER JOIN (SELECT dif_id, name FROM sup_stat.sup_list FINAL) AS sl ON df.supid = sl.dif_id
+        WHERE (df.brand, df.sku) IN %(brand_sku_pairs)s
+          AND df.update_date >= now() - INTERVAL %(days_lookback)s DAY
+          AND df.supid IN %(supplier_ids)s
+          AND df.quantity > 0
+    ), ranked_suppliers AS (
+        SELECT price, quantity, supplier_name, brand, sku, supid,
+            row_number() OVER (
+                PARTITION BY brand, sku
+                ORDER BY price ASC, supplier_name ASC, supid ASC
+            ) AS supplier_rank
+        FROM recent_prices
+        WHERE offer_rank = 1
+    )
+    SELECT price, quantity, supplier_name, brand, sku
+    FROM ranked_suppliers
+    WHERE supplier_rank <= 3
+    ORDER BY brand, sku, price ASC, supplier_name ASC, supid ASC
+    """
+    result = client.query(
+        query,
+        parameters={"brand_sku_pairs": pairs, "supplier_ids": supplier_ids, "days_lookback": days_lookback},
+    )
+    return pd.DataFrame(result.result_rows, columns=PAIR_COLUMNS)

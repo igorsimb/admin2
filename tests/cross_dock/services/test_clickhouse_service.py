@@ -1,6 +1,5 @@
-"""Protect parser-compatible supplier selection and the real ClickHouse client API."""
+"""Protect canonical pair queries and error propagation through the real client API."""
 
-import re
 from types import SimpleNamespace
 from unittest import mock
 
@@ -8,26 +7,6 @@ import pytest
 from clickhouse_connect.driver.httpclient import HttpClient
 
 from cross_dock.services.clickhouse_service import query_supplier_data, query_supplier_data_mv, supplier_query_session
-
-# Reference: parser/src/flask_api/tasks.py, process_data(), captured 2026-11-02.
-PARSER_PRICE_QUERY = """
-WITH recent_prices AS (
-    SELECT DISTINCT df.p, df.q, sl.name, df.dateupd,
-        ROW_NUMBER() OVER (PARTITION BY sl.name ORDER BY df.dateupd DESC) AS rn
-    FROM sup_stat.dif_step_1 AS df
-    INNER JOIN sup_stat.sup_list AS sl ON df.supid = sl.dif_id
-    WHERE lower(df.a) = %(sku_lower)s
-      AND lower(df.b) IN %(brand_values)s
-      AND df.dateupd >= now() - interval %(days_lookback)s day
-      AND df.supid IN %(supplier_ids)s
-      AND df.q > 0
-), ranked_suppliers AS (
-    SELECT DISTINCT p, q, name,
-        ROW_NUMBER() OVER (PARTITION BY name ORDER BY p ASC) AS rank
-    FROM recent_prices WHERE rn = 1
-)
-SELECT p, q, name FROM ranked_suppliers WHERE rank = 1 ORDER BY p ASC LIMIT 3;
-"""
 
 
 @pytest.fixture
@@ -38,35 +17,32 @@ def mock_client():
         yield client
 
 
-@pytest.mark.parametrize(
-    ("brand", "expected_brands"),
-    [
-        ("BOSCH", ("bosch",)),
-        ("HYUNDAI/KIA", ("hyundai/kia", "hyundai/kia/mobis")),
-        ("Hyundai/Kia/Mobis", ("hyundai/kia", "hyundai/kia/mobis")),
-    ],
-)
-def test_slow_query_preserves_parser_selection(mock_client, brand, expected_brands):
-    offers = [(90.25, 3, "Supplier C"), (100.50, 5, "Supplier A"), (120.75, 10, "Supplier B")]
+@pytest.mark.parametrize("use_mv", [False, True])
+def test_query_uses_canonical_pairs_and_current_supplier_metadata(mock_client, use_mv):
+    offers = [(90.25, 3, "Supplier C", "ЯМЗ", "236Д1003009"), (100.50, 5, "Supplier A", "ЯМЗ", "236Д1003009")]
     mock_client.query.side_effect = [
         SimpleNamespace(result_rows=[(1001,), (1002,)]),
         SimpleNamespace(result_rows=offers),
     ]
 
-    result = query_supplier_data(brand, "Ab123", "ОПТ-2")
+    result = (
+        query_supplier_data_mv([(" ямз ", "236д1003009"), ("ЯМЗ", "236Д1003009")], "ОПТ-2")
+        if use_mv
+        else query_supplier_data(" ямз ", "236д1003009", "ОПТ-2")
+    )
 
-    assert list(result.itertuples(index=False, name=None)) == offers
-    query = mock_client.query.call_args.args[0]
-    query = re.sub(r"\bas\s+(price|quantity|supplier_name)\b", "", query, flags=re.IGNORECASE)
-    for alias, original in [("price", "p"), ("quantity", "q"), ("supplier_name", "name")]:
-        query = re.sub(r"\b" + alias + r"\b", original, query)
-    assert re.sub(r"\s+", "", query).lower() == re.sub(r"\s+", "", PARSER_PRICE_QUERY).lower()
+    assert list(result.itertuples(index=False, name=None)) == (offers if use_mv else [row[:3] for row in offers])
+    assert "sup_list FINAL" in mock_client.query.call_args_list[0].args[0]
     assert mock_client.query.call_args.kwargs["parameters"] == {
-        "sku_lower": "ab123",
-        "brand_values": expected_brands,
+        "brand_sku_pairs": [("ЯМЗ", "236Д1003009")],
         "supplier_ids": (1001, 1002),
         "days_lookback": 2,
     }
+    query = mock_client.query.call_args.args[0]
+    assert "sup_stat.sup_list FINAL" in query
+    assert ("sup_stat.rmv_cross_dock" if use_mv else "sup_stat.dif_step_1 FINAL") in query
+    assert "sup_stat.mv_cross_dock" not in query
+    assert "lower(" not in query
 
 
 def test_report_resolves_supplier_ids_once(mock_client):
@@ -85,40 +61,36 @@ def test_report_resolves_supplier_ids_once(mock_client):
         assert call.kwargs["parameters"]["supplier_ids"] == (1001,)
 
 
-def test_no_suppliers_returns_empty_offers_without_price_query(mock_client):
+@pytest.mark.parametrize("use_mv", [False, True])
+def test_no_suppliers_returns_empty_offers_without_price_query(mock_client, use_mv):
     mock_client.query.return_value = SimpleNamespace(result_rows=[])
 
-    result = query_supplier_data("BRAND", "ARTICLE", "empty group")
+    result = (
+        query_supplier_data_mv([("BRAND", "ARTICLE")], "empty")
+        if use_mv
+        else query_supplier_data("BRAND", "ARTICLE", "empty")
+    )
 
     assert result.empty
-    assert list(result.columns) == ["price", "quantity", "supplier_name"]
+    assert list(result.columns) == ["price", "quantity", "supplier_name"] + (["brand", "sku"] if use_mv else [])
     assert mock_client.query.call_count == 1
 
 
+@pytest.mark.parametrize("use_mv", [False, True])
 @pytest.mark.parametrize("failure_stage", ["suppliers", "offers"])
-def test_query_failures_propagate_instead_of_becoming_empty_offers(mock_client, failure_stage):
+def test_query_failures_propagate_instead_of_becoming_empty_offers(mock_client, failure_stage, use_mv):
     error = RuntimeError("ClickHouse unavailable")
     mock_client.query.side_effect = (
         [error] if failure_stage == "suppliers" else [SimpleNamespace(result_rows=[(1,)]), error]
     )
 
     with pytest.raises(RuntimeError, match="ClickHouse unavailable"):
-        query_supplier_data("BRAND", "ARTICLE", "ОПТ-2")
+        if use_mv:
+            query_supplier_data_mv([("BRAND", "ARTICLE")], "ОПТ-2")
+        else:
+            query_supplier_data("BRAND", "ARTICLE", "ОПТ-2")
 
 
-@pytest.mark.parametrize("offers", [[], [(100.0, 5, "Supplier A", "bosch", "123")]])
-def test_fast_query_reads_rows_through_real_client_interface(mock_client, offers):
-    mock_client.query.return_value = SimpleNamespace(result_rows=offers)
-
-    result = query_supplier_data_mv([("bosch", "123")], "ОПТ-2")
-
-    assert list(result.itertuples(index=False, name=None)) == offers
-    assert list(result.columns) == ["price", "quantity", "supplier_name", "brand_lower", "sku_lower"]
-    assert mock_client.query.call_args.kwargs["parameters"]["brand_sku_pairs"] == [("bosch", "123")]
-
-
-def test_fast_query_failure_is_not_reported_as_no_offers(mock_client):
-    mock_client.query.side_effect = RuntimeError("ClickHouse unavailable")
-
-    with pytest.raises(RuntimeError, match="ClickHouse unavailable"):
-        query_supplier_data_mv([("bosch", "123")], "ОПТ-2")
+def test_empty_fast_input_does_not_open_connection(mock_client):
+    assert query_supplier_data_mv([], "ОПТ-2").empty
+    mock_client.query.assert_not_called()

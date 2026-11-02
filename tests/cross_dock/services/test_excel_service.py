@@ -16,6 +16,13 @@ from openpyxl import load_workbook
 from cross_dock.services.excel_service import process_cross_dock_data
 
 
+@pytest.fixture(autouse=True)
+def mock_normalization():
+    with mock.patch("cross_dock.services.excel_service.normalize_brand_sku_pairs") as normalize:
+        normalize.side_effect = lambda pairs: [(b.strip().upper(), a.strip().upper()) for b, a in pairs]
+        yield normalize
+
+
 class TestExcelService:
     """Test suite for Excel service functions."""
 
@@ -115,7 +122,7 @@ class TestExcelService:
 def test_fast_report_does_not_save_incomplete_workbook(failure):
     data = [{"Бренд": "BOSCH", "Артикул": "123"}]
     with (
-        mock.patch("cross_dock.services.clickhouse_service.query_supplier_data_mv") as mock_query,
+        mock.patch("cross_dock.services.excel_service.query_supplier_data_mv") as mock_query,
         mock.patch("cross_dock.services.excel_service.save_workbook") as mock_save,
     ):
         if failure == "query":
@@ -126,8 +133,8 @@ def test_fast_report_does_not_save_incomplete_workbook(failure):
             expected_error = KeyError
         else:
             mock_query.return_value = pd.DataFrame(
-                [("invalid price", 5, "Supplier A", "bosch", "123")],
-                columns=["price", "quantity", "supplier_name", "brand_lower", "sku_lower"],
+                [("invalid price", 5, "Supplier A", "BOSCH", "123")],
+                columns=["price", "quantity", "supplier_name", "brand", "sku"],
             )
             expected_error = ValueError
 
@@ -150,7 +157,7 @@ def test_slow_report_preserves_duplicate_rows_and_input_whitespace(settings, tmp
     mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
     mock_http.query.side_effect = [
         SimpleNamespace(result_rows=[(1,)]),
-        SimpleNamespace(result_rows=[(100.0, 5, "Supplier A")]),
+        SimpleNamespace(result_rows=[(100.0, 5, "Supplier A", "BOSCH", "AB123")]),
         SimpleNamespace(result_rows=[]),
     ]
     with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
@@ -160,11 +167,69 @@ def test_slow_report_preserves_duplicate_rows_and_input_whitespace(settings, tmp
     assert mock_get.call_count == 1
     assert mock_http.query.call_count == 3
     for call in mock_http.query.call_args_list[1:]:
-        assert call.kwargs["parameters"]["brand_values"] == (" bosch ",)
-        assert call.kwargs["parameters"]["sku_lower"] == " ab123 "
+        assert call.kwargs["parameters"]["brand_sku_pairs"] == [("BOSCH", "AB123")]
     workbook = load_workbook(output)
     rows = list(workbook.active.values)
     assert len(rows) == 3
     assert rows[1][:3] == rows[2][:3] == (" BOSCH | AB123 ", " BOSCH ", " AB123 ")
     assert rows[1][3:6] == (100, 5, "Supplier A")
     assert rows[2][3:] == (None,) * 9
+
+
+@pytest.mark.parametrize("use_mv", [False, True])
+def test_aliases_and_duplicate_input_rows_use_canonical_pairs_without_changing_export(
+    settings, tmp_path, mock_normalization, use_mv
+):
+    settings.MEDIA_ROOT = tmp_path
+    mock_normalization.side_effect = None
+    mock_normalization.return_value = [("HYUNDAI/KIA/MOBIS", "001A")] * 3
+    data = [
+        {"Бренд": " hyundai/kia ", "Артикул": "001a"},
+        {"Бренд": "Hyundai/Kia/Mobis", "Артикул": "001A"},
+        {"Бренд": " hyundai/kia ", "Артикул": "001a"},
+    ]
+    offers = pd.DataFrame([(100, 5, "Supplier A")], columns=["price", "quantity", "supplier_name"])
+    with (
+        mock.patch("cross_dock.services.excel_service.query_supplier_data_mv") as fast,
+        mock.patch("cross_dock.services.excel_service.supplier_query_session") as session,
+    ):
+        fast.return_value = offers.assign(brand="HYUNDAI/KIA/MOBIS", sku="001A")
+        slow = session.return_value.__enter__.return_value
+        slow.return_value = offers
+        _, url = process_cross_dock_data(data, "ОПТ-2", use_mv=use_mv)
+
+    mock_normalization.assert_called_once_with([(item["Бренд"], item["Артикул"]) for item in data])
+    if use_mv:
+        fast.assert_called_once_with([("HYUNDAI/KIA/MOBIS", "001A")], "ОПТ-2")
+        session.assert_not_called()
+    else:
+        assert slow.call_args_list == [mock.call("HYUNDAI/KIA/MOBIS", "001A")] * 3
+        fast.assert_not_called()
+    rows = list(load_workbook(tmp_path / "exports" / os.path.basename(url)).active.values)
+    assert len(rows) == 4
+    for row, original in zip(rows[1:], data, strict=True):
+        assert row[1:3] == (original["Бренд"], original["Артикул"])
+        assert row[3:6] == (100, 5, "Supplier A")
+
+
+def test_normalization_failure_does_not_save_an_empty_report(mock_normalization):
+    mock_normalization.side_effect = RuntimeError("Dictionary unavailable")
+    with mock.patch("cross_dock.services.excel_service.save_workbook") as save:
+        with pytest.raises(RuntimeError, match="Dictionary unavailable"):
+            process_cross_dock_data([{"Бренд": "BOSCH", "Артикул": "123"}], "ОПТ-2", use_mv=True)
+    save.assert_not_called()
+
+
+@pytest.mark.parametrize("use_mv", [False, True])
+def test_file_input_preserves_leading_zeros_and_literal_na(tmp_path, use_mv):
+    from cross_dock.services.excel_service import process_cross_dock_data_from_file
+
+    path = tmp_path / "input.xlsx"
+    pd.DataFrame({"Бренд": ["NA", "BOSCH"], "Артикул": ["00123", "1E3354697011"]}).to_excel(path, index=False)
+    with mock.patch("cross_dock.services.excel_service.process_cross_dock_data") as process:
+        process.return_value = ("100%", "/media/exports/result.xlsx")
+        process_cross_dock_data_from_file(str(path), "ОПТ-2", use_mv=use_mv)
+    assert process.call_args.args[0] == [
+        {"Бренд": "NA", "Артикул": "00123"},
+        {"Бренд": "BOSCH", "Артикул": "1E3354697011"},
+    ]

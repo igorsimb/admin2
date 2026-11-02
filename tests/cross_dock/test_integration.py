@@ -18,8 +18,12 @@ from cross_dock.services.excel_service import process_cross_dock_data_from_file
 class TestIntegration:
     """Integration test suite for cross-dock functionality."""
 
+    @mock.patch(
+        "cross_dock.services.excel_service.normalize_brand_sku_pairs",
+        side_effect=lambda pairs: [(b.upper(), a.upper()) for b, a in pairs],
+    )
     @mock.patch("cross_dock.services.excel_service.supplier_query_session")
-    def test_process_cross_dock_data_from_file(self, mock_session):
+    def test_process_cross_dock_data_from_file(self, mock_session, mock_normalize):
         """Test processing cross-dock data from a file."""
         mock_query_supplier_data = mock_session.return_value.__enter__.return_value
         mock_query_supplier_data.return_value = pd.DataFrame(

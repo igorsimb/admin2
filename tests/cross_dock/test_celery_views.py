@@ -76,7 +76,7 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
 
 @pytest.mark.parametrize(
     ("use_mv", "failure_stage"),
-    [("0", "connection"), ("0", "suppliers"), ("0", "offers"), ("1", "connection"), ("1", "offers")],
+    [(mode, stage) for mode in ("0", "1") for stage in ("normalization", "connection", "suppliers", "offers")],
 )
 def test_clickhouse_failure_remains_visible_in_task_list(
     client, authenticated_user, excel_file, settings, tmp_path, use_mv, failure_stage
@@ -84,15 +84,20 @@ def test_clickhouse_failure_remains_visible_in_task_list(
     settings.MEDIA_ROOT = tmp_path
     mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
     error = RuntimeError("ClickHouse unavailable")
-    with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
+    with (
+        mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get,
+        mock.patch("cross_dock.services.normalization.get_clickhouse_client") as mock_normalization_get,
+    ):
+        normalization_client = mock_normalization_get.return_value.__enter__.return_value
+        normalization_client.query.return_value = SimpleNamespace(result_rows=[])
+        if failure_stage == "normalization":
+            normalization_client.query.side_effect = error
         if failure_stage == "connection":
             mock_get.return_value.__enter__.side_effect = error
         else:
             mock_get.return_value.__enter__.return_value = mock_http
             mock_http.query.side_effect = (
-                [error]
-                if use_mv == "1" or failure_stage == "suppliers"
-                else [SimpleNamespace(result_rows=[(1,)]), error]
+                [error] if failure_stage == "suppliers" else [SimpleNamespace(result_rows=[(1,)]), error]
             )
         response = client.post(
             reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": use_mv}
@@ -112,14 +117,16 @@ def test_clickhouse_failure_remains_visible_in_task_list(
 def test_upload_queries_and_exports_numeric_article(client, authenticated_user, excel_file, settings, tmp_path, use_mv):
     settings.MEDIA_ROOT = tmp_path
     mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
-    if use_mv:
-        mock_http.query.return_value = SimpleNamespace(result_rows=[(123.5, 4, "Supplier A", "bosch", "12345")])
-    else:
-        mock_http.query.side_effect = [
-            SimpleNamespace(result_rows=[(1,)]),
-            SimpleNamespace(result_rows=[(123.5, 4, "Supplier A")]),
-        ]
-    with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
+    mock_http.query.side_effect = [
+        SimpleNamespace(result_rows=[]),
+        SimpleNamespace(result_rows=[(1,)]),
+        SimpleNamespace(result_rows=[(123.5, 4, "Supplier A", "BOSCH", "12345")]),
+    ]
+    with (
+        mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get,
+        mock.patch("cross_dock.services.normalization.get_clickhouse_client") as mock_normalization_get,
+    ):
+        mock_normalization_get.return_value.__enter__.return_value = mock_http
         mock_get.return_value.__enter__.return_value = mock_http
         response = client.post(
             reverse("cross_dock:process_file"),
@@ -130,14 +137,11 @@ def test_upload_queries_and_exports_numeric_article(client, authenticated_user, 
     task = CrossDockTask.objects.get()
     assert task.status == "SUCCESS"
     parameters = mock_http.query.call_args.kwargs["parameters"]
-    if use_mv:
-        assert parameters["brand_sku_pairs"] == [("bosch", "12345")]
-    else:
-        assert parameters["sku_lower"] == "12345"
+    assert parameters["brand_sku_pairs"] == [("BOSCH", "12345")]
     from openpyxl import load_workbook
 
     workbook = load_workbook(next((tmp_path / "exports").glob("*.xlsx")))
-    expected_article = 12345 if use_mv else "12345"
+    expected_article = "12345"
     assert list(workbook.active.values)[1][:6] == ("BOSCH|12345", "BOSCH", expected_article, 123.5, 4, "Supplier A")
 
 
