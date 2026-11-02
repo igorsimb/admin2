@@ -1,7 +1,8 @@
 """Check real ClickHouse replacement and snapshot semantics in an opt-in local container.
 
-Set CROSS_DOCK_TEST_CONTAINER to an isolated ClickHouse 24.10 container. Each test
-creates and removes its own uniquely named database; no configured server is used.
+Set CROSS_DOCK_TEST_CONTAINER to an isolated ClickHouse 24.10 container with port
+8123 published on localhost. Queries use the real HTTP client in readonly mode;
+each test creates and removes its own database through the local container CLI.
 """
 
 import json
@@ -13,7 +14,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from clickhouse_connect import get_client
 from clickhouse_connect.driver.binding import bind_query
+from clickhouse_connect.driver.exceptions import DatabaseError
 from openpyxl import load_workbook
 
 from cross_dock.services import clickhouse_service, normalization
@@ -26,15 +29,21 @@ def snapshot_client(monkeypatch):
     if not container:
         pytest.skip("Set CROSS_DOCK_TEST_CONTAINER to an isolated ClickHouse 24.10 container")
     database = "cross_dock_test_" + uuid.uuid4().hex
+    published = subprocess.run(
+        ["docker", "port", container, "8123/tcp"], capture_output=True, encoding="utf-8", check=True, timeout=10
+    ).stdout.strip()
+    assert published.startswith("127.0.0.1:"), "The test HTTP port must be bound to localhost"
+    http_client = get_client(host="127.0.0.1", port=int(published.rsplit(":", 1)[1]), settings={"readonly": 1})
 
     class Client:
-        def query(self, sql, parameters=None):
+        def query(self, sql, parameters=None, external_data=None):
             sql = sql.replace("sup_stat.", database + ".").replace("dif.", database + ".")
+            if sql.lstrip().upper().startswith(("SELECT", "WITH")):
+                return http_client.query(sql, parameters=parameters, external_data=external_data)
             sql, _ = bind_query(sql, parameters)
             result = subprocess.run(
                 ["docker", "exec", "-i", container, "clickhouse-client", "--format", "JSONCompact"],
-                input=sql,
-                encoding="utf-8",
+                input=sql.encode("utf-8"),
                 capture_output=True,
                 check=True,
                 timeout=60,
@@ -69,7 +78,10 @@ def snapshot_client(monkeypatch):
         monkeypatch.setattr(normalization, "get_clickhouse_client", connection)
         yield client
     finally:
-        client.query(f"DROP DATABASE {database} SYNC")
+        try:
+            client.query(f"DROP DATABASE {database} SYNC")
+        finally:
+            http_client.close()
 
 
 def refresh(client):
@@ -153,3 +165,33 @@ def test_reports_match_for_aliases_duplicates_and_unicode(snapshot_client, setti
         (50, 2, "Supplier"),
         (None, None, None),
     ]
+
+
+def test_large_external_pair_list_works_with_default_query_limit(snapshot_client):
+    client = snapshot_client
+    assert client.query("SELECT value FROM system.settings WHERE name = 'max_query_size'").result_rows == [("262144",)]
+    assert client.query("SELECT value FROM system.settings WHERE name = 'readonly'").result_rows == [("1",)]
+    client.query("INSERT INTO sup_stat.sup_list VALUES (1,'Supplier',['Group'])")
+    client.query("""INSERT INTO sup_stat.dif_step_1
+        SELECT today(), 1, 'BOSCH', leftPad(toString(number), 8, '0'), toFloat64(number + 1), 5
+        FROM numbers(40000)""")
+    special_pair = ("O'БРЕНД", '00"A\\B\tC\nD')
+    client.query(
+        "INSERT INTO sup_stat.dif_step_1 VALUES (today(), 1, %(brand)s, %(sku)s, 123, 2)",
+        parameters={"brand": special_pair[0], "sku": special_pair[1]},
+    )
+    assert client.query("SELECT b, a FROM sup_stat.dif_step_1 WHERE b != 'BOSCH'").result_rows == [special_pair]
+    refresh(client)
+    pairs = [("BOSCH", f"{i:08d}") for i in range(40_000)] + [special_pair]
+    with pytest.raises(DatabaseError, match="Max query size exceeded"):
+        client.query(
+            "SELECT count() FROM sup_stat.rmv_cross_dock WHERE (brand, sku) IN %(pairs)s",
+            parameters={"pairs": pairs},
+        )
+
+    result = clickhouse_service.query_supplier_data_mv(pairs + pairs[:2], "Group")
+
+    assert len(result) == len(pairs)
+    offers = {(row.brand, row.sku): (row.price, row.quantity) for row in result.itertuples(index=False)}
+    assert offers == {**{pair: (i + 1, 5) for i, pair in enumerate(pairs[:-1])}, special_pair: (123, 2)}
+    assert_offers(*special_pair, [(123, 2, "Supplier")])

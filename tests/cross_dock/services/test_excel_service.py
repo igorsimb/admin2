@@ -5,6 +5,7 @@ This module contains tests for the Excel service functions that are used
 for processing cross-dock data and generating Excel files.
 """
 
+import json
 import os
 import tempfile
 from unittest import mock
@@ -167,7 +168,7 @@ def test_slow_report_preserves_duplicate_rows_and_input_whitespace(settings, tmp
     assert mock_get.call_count == 1
     assert mock_http.query.call_count == 3
     for call in mock_http.query.call_args_list[1:]:
-        assert call.kwargs["parameters"]["brand_sku_pairs"] == [("BOSCH", "AB123")]
+        assert json.loads(call.kwargs["external_data"].files[0].data) == ["BOSCH", "AB123"]
     workbook = load_workbook(output)
     rows = list(workbook.active.values)
     assert len(rows) == 3

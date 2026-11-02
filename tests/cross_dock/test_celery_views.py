@@ -4,6 +4,7 @@ Tests for cross-dock views with Celery integration.
 This module contains tests for the cross-dock views that use Celery for asynchronous processing.
 """
 
+import json
 from io import BytesIO
 from types import SimpleNamespace
 from unittest import mock
@@ -136,8 +137,8 @@ def test_upload_queries_and_exports_numeric_article(client, authenticated_user, 
     assert response.status_code == 302
     task = CrossDockTask.objects.get()
     assert task.status == "SUCCESS"
-    parameters = mock_http.query.call_args.kwargs["parameters"]
-    assert parameters["brand_sku_pairs"] == [("BOSCH", "12345")]
+    external = mock_http.query.call_args.kwargs["external_data"]
+    assert json.loads(external.files[0].data) == ["BOSCH", "12345"]
     from openpyxl import load_workbook
 
     workbook = load_workbook(next((tmp_path / "exports").glob("*.xlsx")))

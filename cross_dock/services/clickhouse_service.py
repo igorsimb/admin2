@@ -3,12 +3,15 @@
 SLOW resolves source replacements with FINAL. FAST reads the last completed RMV
 refresh. Both use current supplier metadata and identical eligibility and ranking.
 Input brand aliases are normalized once by the report service before querying.
+Pair lists travel as external data so large uploads do not expand the SQL text.
 """
 
+import json
 from contextlib import contextmanager
 from functools import partial
 
 import pandas as pd
+from clickhouse_connect.driver.external import ExternalData
 
 from common.utils.clickhouse import get_clickhouse_client
 
@@ -63,6 +66,12 @@ def _query_supplier_pairs(client, supplier_ids, brand_sku_pairs, days_lookback, 
     if not supplier_ids or not pairs:
         return pd.DataFrame(columns=PAIR_COLUMNS)
 
+    external_data = ExternalData(
+        file_name="uploaded_pairs",
+        data="\n".join(json.dumps(pair, ensure_ascii=False) for pair in pairs).encode("utf-8"),
+        fmt="JSONCompactEachRow",
+        structure=["brand String", "sku String"],
+    )
     # Only the source changes; eligibility and ranking must stay identical in both modes.
     source = (
         "SELECT supid, brand, sku, price, quantity, update_date FROM sup_stat.rmv_cross_dock"
@@ -80,7 +89,7 @@ def _query_supplier_pairs(client, supplier_ids, brand_sku_pairs, days_lookback, 
             ) AS offer_rank
         FROM ({source}) AS df
         INNER JOIN (SELECT dif_id, name FROM sup_stat.sup_list FINAL) AS sl ON df.supid = sl.dif_id
-        WHERE (df.brand, df.sku) IN %(brand_sku_pairs)s
+        WHERE (df.brand, df.sku) IN (SELECT brand, sku FROM uploaded_pairs)
           AND df.update_date >= now() - INTERVAL %(days_lookback)s DAY
           AND df.supid IN %(supplier_ids)s
           AND df.quantity > 0
@@ -100,6 +109,7 @@ def _query_supplier_pairs(client, supplier_ids, brand_sku_pairs, days_lookback, 
     """
     result = client.query(
         query,
-        parameters={"brand_sku_pairs": pairs, "supplier_ids": supplier_ids, "days_lookback": days_lookback},
+        parameters={"supplier_ids": supplier_ids, "days_lookback": days_lookback},
+        external_data=external_data,
     )
     return pd.DataFrame(result.result_rows, columns=PAIR_COLUMNS)
