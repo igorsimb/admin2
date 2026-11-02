@@ -34,7 +34,7 @@
                 </label>
                 <select id="supplier_list" name="supplier_list" class="select select-bordered w-full">
                     {% for list in supplier_lists %}
-                        <option value="{{ list }}">{{ list }}</option>
+                        <option value="{{ list }}"{% if list == "ОПТ-2" %} selected{% endif %}>{{ list }}</option>
                     {% endfor %}
                 </select>
             </div>
