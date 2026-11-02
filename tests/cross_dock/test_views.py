@@ -185,29 +185,23 @@ class TestProcessFileErrors:
         assert isinstance(response, HttpResponseRedirect)
         assert response.url == "/cross_dock/tasks/"
 
-    @mock.patch("common.utils.clickhouse.get_clickhouse_client")
-    def test_handles_database_connection_error(self, mock_get_clickhouse_client, request_factory, excel_file):
-        """Test that process_file handles database connection errors."""
-        # Mock the context manager to simulate a database connection error
-        mock_client_context = mock.MagicMock()
-        mock_client_context.__enter__.side_effect = Exception("DB connection error")
-        mock_get_clickhouse_client.return_value = mock_client_context
-
-        request = request_factory.post(
-            "/cross-dock/process-file/", {"file_upload": excel_file, "supplier_list": "test_list"}
-        )
-
+    def test_marks_created_task_failed_when_queue_submission_fails(self, request_factory, excel_file):
+        request = request_factory.post("/cross-dock/process/", {"file_upload": excel_file, "supplier_list": "ОПТ-2"})
+        request.user = mock.Mock(is_authenticated=False)
         with (
             mock.patch("cross_dock.views.os.makedirs"),
             mock.patch("builtins.open", mock.mock_open()),
-            mock.patch("cross_dock.views.os.path.join", return_value="mock_path"),
-            mock.patch("cross_dock.views.reverse", return_value="/cross_dock/tasks/"),
+            mock.patch("cross_dock.views.os.remove") as mock_remove,
+            mock.patch("cross_dock.views.CrossDockTask.objects.create") as mock_create,
+            mock.patch("cross_dock.views.CrossDockTask.objects.get") as mock_get,
+            mock.patch("cross_dock.views.process_file_task.delay", side_effect=RuntimeError("Broker unavailable")),
         ):
             response = process_file(request)
 
-        # Check that we're redirected to the task list page
-        assert isinstance(response, HttpResponseRedirect)
-        assert response.url == "/cross_dock/tasks/"
+        assert response.status_code == 302
+        mock_get.assert_called_once_with(id=mock_create.return_value.id)
+        mock_get.return_value.mark_as_failed.assert_called_once_with("Broker unavailable")
+        mock_remove.assert_called_once()
 
     def test_logs_and_redirects_for_processing_exceptions(self):
         """Test that processing errors are logged and redirected to task list."""

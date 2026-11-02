@@ -10,6 +10,7 @@ import tempfile
 from unittest import mock
 
 import pandas as pd
+import pytest
 from openpyxl import load_workbook
 
 from cross_dock.services.excel_service import process_cross_dock_data
@@ -18,9 +19,10 @@ from cross_dock.services.excel_service import process_cross_dock_data
 class TestExcelService:
     """Test suite for Excel service functions."""
 
-    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
-    def test_process_cross_dock_data(self, mock_query_supplier_data):
+    @mock.patch("cross_dock.services.excel_service.supplier_query_session")
+    def test_process_cross_dock_data(self, mock_session):
         """Test processing cross-dock data and generating an Excel file."""
+        mock_query_supplier_data = mock_session.return_value.__enter__.return_value
         mock_query_supplier_data.return_value = pd.DataFrame(
             {
                 "price": [100.50, 120.75, 90.25],
@@ -70,9 +72,10 @@ class TestExcelService:
                     assert sheet.cell(row=2, column=5).value == 5
                     assert sheet.cell(row=2, column=6).value == "Supplier A"
 
-    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
-    def test_process_cross_dock_data_empty_results(self, mock_query_supplier_data):
+    @mock.patch("cross_dock.services.excel_service.supplier_query_session")
+    def test_process_cross_dock_data_empty_results(self, mock_session):
         """Test handling of empty query results."""
+        mock_query_supplier_data = mock_session.return_value.__enter__.return_value
         mock_query_supplier_data.return_value = pd.DataFrame(columns=["price", "quantity", "supplier_name"])
 
         test_data = [{"Бренд": "BRAND", "Артикул": "ARTICLE"}]
@@ -94,26 +97,48 @@ class TestExcelService:
                     assert sheet.cell(row=2, column=5).value is None
                     assert sheet.cell(row=2, column=6).value is None
 
-    @mock.patch("cross_dock.services.clickhouse_service.query_supplier_data")
-    def test_process_cross_dock_data_exception(self, mock_query_supplier_data):
+    @mock.patch("cross_dock.services.excel_service.supplier_query_session")
+    def test_process_cross_dock_data_exception(self, mock_session):
         """Test error handling during data processing."""
+        mock_query_supplier_data = mock_session.return_value.__enter__.return_value
         mock_query_supplier_data.side_effect = Exception("Test exception")
 
         test_data = [{"Бренд": "BRAND", "Артикул": "ARTICLE"}]
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with mock.patch("django.conf.settings.MEDIA_ROOT", temp_dir):
-                with mock.patch("django.conf.settings.MEDIA_URL", "/media/"):
-                    progress, file_url = process_cross_dock_data(test_data, "Группа для проценки ТРЕШКА")
-                    assert progress == "100%"
+        with mock.patch("cross_dock.services.excel_service.save_workbook") as mock_save:
+            with pytest.raises(Exception, match="Test exception"):
+                process_cross_dock_data(test_data, "Группа для проценки ТРЕШКА")
+        mock_save.assert_not_called()
 
-                    file_path = os.path.join(temp_dir, "exports", os.path.basename(file_url))
-                    assert os.path.exists(file_path)
 
-                    wb = load_workbook(file_path)
-                    sheet = wb.active
+def test_slow_report_preserves_duplicate_rows_and_input_whitespace(settings, tmp_path):
+    from types import SimpleNamespace
 
-                    # Verify error handling by checking for empty cells
-                    assert sheet.cell(row=2, column=4).value is None
-                    assert sheet.cell(row=2, column=5).value is None
-                    assert sheet.cell(row=2, column=6).value is None
+    from clickhouse_connect.driver.httpclient import HttpClient
+
+    from cross_dock.services.excel_service import process_cross_dock_data_from_file
+
+    settings.MEDIA_ROOT = tmp_path
+    input_path = tmp_path / "input.xlsx"
+    pd.DataFrame({"Бренд": [" BOSCH ", " BOSCH "], "Артикул": [" AB123 ", " AB123 "]}).to_excel(input_path, index=False)
+    mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
+    mock_http.query.side_effect = [
+        SimpleNamespace(result_rows=[(1,)]),
+        SimpleNamespace(result_rows=[(100.0, 5, "Supplier A")]),
+        SimpleNamespace(result_rows=[]),
+    ]
+    with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
+        mock_get.return_value.__enter__.return_value = mock_http
+        output = process_cross_dock_data_from_file(str(input_path), "ОПТ-2", use_mv=False)
+
+    assert mock_get.call_count == 1
+    assert mock_http.query.call_count == 3
+    for call in mock_http.query.call_args_list[1:]:
+        assert call.kwargs["parameters"]["brand_values"] == (" bosch ",)
+        assert call.kwargs["parameters"]["sku_lower"] == " ab123 "
+    workbook = load_workbook(output)
+    rows = list(workbook.active.values)
+    assert len(rows) == 3
+    assert rows[1][:3] == rows[2][:3] == (" BOSCH | AB123 ", " BOSCH ", " AB123 ")
+    assert rows[1][3:6] == (100, 5, "Supplier A")
+    assert rows[2][3:] == (None,) * 9

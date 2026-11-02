@@ -52,7 +52,7 @@ def task_record():
 
 def test_process_file_task_success(sample_excel_file, task_record):
     """Test successful file processing."""
-    with mock.patch("cross_dock.services.excel_service.process_cross_dock_data_from_file") as mock_process:
+    with mock.patch("cross_dock.tasks.process_cross_dock_data_from_file") as mock_process:
         # Setup mock
         output_path = os.path.join(settings.MEDIA_ROOT, "exports", f"result_{uuid.uuid4()}.xlsx")
         mock_process.return_value = output_path

@@ -1,4 +1,5 @@
-import contextlib
+"""Accept cross-dock uploads and expose background task results and comments."""
+
 import logging
 import os
 import uuid
@@ -100,20 +101,6 @@ def process_file(request):
                 destination.write(chunk)
 
         try:
-            from common.utils.clickhouse import get_clickhouse_client
-
-            try:
-                with get_clickhouse_client() as client:
-                    # Verify database connectivity before starting the task
-                    test_result = client.execute("SELECT 1")
-                    logger.info(f"ClickHouse connection test successful: {test_result}")
-            except Exception as db_error:
-                logger.error(f"ClickHouse connection error: {db_error}")
-                # Clean up the uploaded file
-                with contextlib.suppress(Exception):
-                    os.remove(file_path)
-                return redirect(reverse("cross_dock:task_list"))
-
             # Create task record with PENDING status
             with transaction.atomic():
                 task = CrossDockTask.objects.create(

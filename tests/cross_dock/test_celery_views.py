@@ -4,12 +4,16 @@ Tests for cross-dock views with Celery integration.
 This module contains tests for the cross-dock views that use Celery for asynchronous processing.
 """
 
+from io import BytesIO
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from clickhouse_connect.driver.httpclient import HttpClient
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from openpyxl import Workbook
 
 from cross_dock.models import CrossDockTask
 
@@ -19,9 +23,13 @@ User = get_user_model()
 @pytest.fixture
 def excel_file():
     """Create a simple Excel file for testing."""
-    content = b"PK\x03\x04\x14\x00\x00\x00\x08\x00\x00\x00!\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    workbook = Workbook()
+    workbook.active.append(["Бренд", "Артикул"])
+    workbook.active.append(["BOSCH", 12345])
+    stream = BytesIO()
+    workbook.save(stream)
     return SimpleUploadedFile(
-        "test.xlsx", content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "test.xlsx", stream.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 
@@ -48,6 +56,8 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
         assert response.status_code == 302
         assert response.url == reverse("cross_dock:task_list")
 
+        mock_client.assert_not_called()
+
         # Check that a task was created
         assert CrossDockTask.objects.count() == 1
         task = CrossDockTask.objects.first()
@@ -64,31 +74,56 @@ def test_process_file_view_with_celery(client, authenticated_user, excel_file):
         assert "file_path" in kwargs
 
 
-def test_process_file_view_db_error(client, authenticated_user, excel_file):
-    """Test that the process_file view handles database connection errors."""
-    with (
-        mock.patch("common.utils.clickhouse.get_clickhouse_client") as mock_client,
-        mock.patch("cross_dock.views.os.remove") as mock_remove,
-    ):
-        # Mock ClickHouse client to raise an exception
-        mock_client_instance = mock.MagicMock()
-        mock_client_instance.__enter__.side_effect = Exception("DB connection error")
-        mock_client.return_value = mock_client_instance
-
-        # Make the request
+@pytest.mark.parametrize("failure_stage", ["connection", "suppliers", "offers"])
+def test_clickhouse_failure_remains_visible_in_task_list(
+    client, authenticated_user, excel_file, settings, tmp_path, failure_stage
+):
+    settings.MEDIA_ROOT = tmp_path
+    mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
+    error = RuntimeError("ClickHouse unavailable")
+    with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
+        if failure_stage == "connection":
+            mock_get.return_value.__enter__.side_effect = error
+        else:
+            mock_get.return_value.__enter__.return_value = mock_http
+            mock_http.query.side_effect = (
+                [error] if failure_stage == "suppliers" else [SimpleNamespace(result_rows=[(1,)]), error]
+            )
         response = client.post(
-            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2"}
+            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": "0"}
         )
 
-        # Check redirect
-        assert response.status_code == 302
-        assert response.url == reverse("cross_dock:task_list")
+    assert response.status_code == 302
+    task = CrossDockTask.objects.get()
+    assert task.status == "FAILURE"
+    assert task.error_message == "ClickHouse unavailable"
+    assert not task.result_url
+    assert not list((tmp_path / "uploads").iterdir())
+    listing = client.get(response.url)
+    assert task in listing.context["tasks"]
 
-        # Check that no task was created
-        assert CrossDockTask.objects.count() == 0
 
-        # Check that the file was cleaned up
-        mock_remove.assert_called_once()
+def test_slow_upload_queries_and_exports_numeric_article(client, authenticated_user, excel_file, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    mock_http = mock.create_autospec(HttpClient, instance=True, spec_set=True)
+    mock_http.query.side_effect = [
+        SimpleNamespace(result_rows=[(1,)]),
+        SimpleNamespace(result_rows=[(123.5, 4, "Supplier A")]),
+    ]
+    with mock.patch("cross_dock.services.clickhouse_service.get_clickhouse_client") as mock_get:
+        mock_get.return_value.__enter__.return_value = mock_http
+        response = client.post(
+            reverse("cross_dock:process_file"), {"file_upload": excel_file, "supplier_list": "ОПТ-2", "use_mv": "0"}
+        )
+
+    assert response.status_code == 302
+    task = CrossDockTask.objects.get()
+    assert task.status == "SUCCESS"
+    assert mock_http.query.call_args.kwargs["parameters"]["sku_lower"] == "12345"
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(next((tmp_path / "exports").glob("*.xlsx")))
+    assert list(workbook.active.values)[1][:6] == ("BOSCH|12345", "BOSCH", "12345", 123.5, 4, "Supplier A")
 
 
 def test_task_detail_view(client, authenticated_user):
