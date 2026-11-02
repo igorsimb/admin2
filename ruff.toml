@@ -16,6 +16,7 @@ exclude = [
     ".ruff_cache",
     ".svn",
     ".tox",
+    ".tmp",
     ".venv",
     ".vscode",
     "__pypackages__",
@@ -34,7 +35,7 @@ line-length = 120
 indent-width = 4
 
 # Match your Python version
-target-version = "py312"
+target-version = "py314"
 
 [lint]
 # Expanded rule selection

@@ -64,3 +64,6 @@ Desktop.ini
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+# Local verification environments and caches
+.tmp/

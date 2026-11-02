@@ -1,53 +1,36 @@
-# Stage 1: Base build stage
-FROM python:3.12-slim AS builder
+ARG PYTHON_VERSION=3.14.8
+FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /uvx /bin/
 
-# Create the app directory
-RUN mkdir /app
-
-# Set the working directory
 WORKDIR /app
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_COMPILE_BYTECODE=1
 
-# Set environment variables to optimize Python
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+COPY pyproject.toml uv.lock .python-version ./
+ARG INSTALL_DEV=false
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$INSTALL_DEV" = "true" ]; then \
+        uv sync --locked --all-groups; \
+    else \
+        uv sync --locked --no-dev; \
+    fi
 
-# Install dependencies first for caching benefit
-RUN pip install --upgrade pip
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Production stage
-FROM python:3.12-slim
+FROM python:${PYTHON_VERSION}-slim-bookworm
 
 RUN useradd -m -r appuser && \
-   mkdir /app && \
-   chown -R appuser /app
+    mkdir -p /app/media && \
+    chown -R appuser /app
 
-# Copy the Python dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
-
-# Set the working directory
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 WORKDIR /app
-
-RUN mkdir -p /app/media
-
-# Copy application code
 COPY --chown=appuser:appuser . .
 
-# Set environment variables to optimize Python
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Switch to non-root user
-#USER appuser
-
-# Expose the application port
 EXPOSE 8000
+RUN python -c "from pathlib import Path; p = Path('/app/entrypoint.prod.sh'); p.write_bytes(p.read_bytes().replace(b'\r\n', b'\n'))" \
+    && chmod +x /app/entrypoint.prod.sh
 
-# Fix line endings and make entry file executable
-RUN python -c "import sys; filename = sys.argv[1]; text = open(filename, 'r').read().replace('\r\n', '\n'); open(filename, 'w').write(text)" /app/entrypoint.prod.sh
-RUN chmod +x  /app/entrypoint.prod.sh
-
-# Start the application using Gunicorn
 CMD ["/app/entrypoint.prod.sh"]

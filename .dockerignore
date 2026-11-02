@@ -113,3 +113,9 @@ node_modules/
 
 # VS Code
 .vscode
+
+# Local verification environments and caches
+.tmp/
+
+# Repository metadata is not needed by the application
+.git/

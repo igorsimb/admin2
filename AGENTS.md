@@ -1,6 +1,6 @@
 # AGENTS.md (repo instructions for coding agents)
 
-This repository is a Django 5.2 project targeting Python 3.12+.
+This repository is a Django 6.0 project targeting Python 3.14+.
 
 **Sources of truth already in repo** (these rules are included/expanded here):
 - `.cursorrules`
@@ -119,7 +119,7 @@ Key principles (see `docs/project_overview.md`):
   (and then add `# noqa` as already used in `config/django_config/test.py`).
 
 ### Typing
-- Python version is `>=3.12`.
+- Python version is `>=3.14`.
 - Prefer PEP 604 unions: `X | Y`, `X | None` (avoid `Optional[X]`).
 - Annotate `-> None` explicitly for functions returning nothing.
 - Use modern built-in generics: `list[str]`, `dict[str, Any]`.

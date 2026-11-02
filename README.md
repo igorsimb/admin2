@@ -6,7 +6,7 @@
 
 ### Предварительные требования
 
-- Python 3.12 или выше
+- Python 3.14 (Docker использует 3.14.8)
 - Git
 
 ### Установка и настройка
@@ -24,7 +24,8 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Создание виртуального окружения
-uv venv
+uv python install 3.14
+uv venv --python 3.14
 
 # Активация виртуального окружения
 # Windows
@@ -33,10 +34,10 @@ uv venv
 source .venv/bin/activate
 
 # Установка зависимостей для разработки
-uv sync --all-groups
+uv sync --locked --all-groups
 
 # (При необходимости) Не устанавливать зависимости для разработки
-uv sync --no-dev
+uv sync --locked --no-dev
 
 # Настройка базы данных
 uv run manage.py migrate
@@ -47,12 +48,34 @@ uv run manage.py runserver
 
 ### Управление зависимостями
 
-Проект использует `uv` для управления зависимостями. Основные команды:
+Проект использует `uv`; точные версии для Windows и Linux зафиксированы в `uv.lock`.
+Основные команды:
 
-- `uv sync` - установка только основных зависимостей
-- `uv sync --all-groups` - установка всех зависимостей, включая инструменты разработки
--  `uv sync --no-dev` - установка только основных зависимостей без инструментов разработки
-- `uv sync --group dev` - установка основных зависимостей и группы dev
+- `uv sync --locked` - установка основных зависимостей и группы dev по lock-файлу
+- `uv sync --locked --all-groups` - установка всех групп зависимостей
+- `uv sync --locked --no-dev` - установка без инструментов разработки
+- `uv lock --upgrade --python 3.14` - обновление до последних совместимых версий; после этого нужны тесты
+- `uv export --locked --no-dev --format requirements-txt --output-file requirements.txt` - обновление экспорта для pip
+
+Не обновляйте `requirements.txt` отдельно от `uv.lock`. После изменения зависимостей проверьте
+`uv run pytest -n 0` и соберите Docker-образ. Текущий lock-файл использует Django 6.0.9:
+`django-celery-beat` 2.9.0 ограничивает Django версией `<6.1`.
+
+При переходе с Python 3.12 удалите старую `.venv` и создайте её заново командами выше.
+Перед запуском обновлённого приложения примените миграции в нужном окружении.
+
+### Docker
+
+Образ устанавливает зависимости через `uv sync --locked --no-dev`. Окружение находится
+в `/opt/venv`, поэтому подключение исходников в `/app` через Compose не скрывает зависимости.
+Python и uv закреплены в `Dockerfile`; файл `requirements.txt` при сборке не используется.
+
+Для проверки с инструментами разработки:
+
+```bash
+docker build --build-arg INSTALL_DEV=true -t admin2:check .
+docker run --rm --network none -e DJANGO_SECRET_KEY=local-test-key -e DJANGO_SETTINGS_MODULE=config.django_config.test admin2:check python -m pytest -n 0
+```
 
 ### Рабочий процесс разработки с несколькими окружениями
 

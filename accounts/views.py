@@ -1,4 +1,7 @@
-from allauth.account.utils import send_email_confirmation
+"""Manage profiles and request verification of account email addresses."""
+
+from allauth.account.internal.flows.email_verification import send_verification_email_to_address
+from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.shortcuts import get_object_or_404, redirect, render
@@ -6,6 +9,15 @@ from django.urls import reverse
 
 from .forms import EmailChangeForm, ProfileForm
 from .models import User
+
+
+def _send_email_confirmation(request, user) -> None:
+    if not user.email:
+        return
+    address = EmailAddress.objects.add_email(request, user, user.email)
+    if not address.verified:
+        # Use allauth's verification flow to preserve rate limits and confirmation signals.
+        send_verification_email_to_address(request, address)
 
 
 def profile_view(request, username=None):
@@ -62,7 +74,7 @@ def email_change_view(request):
             # Then Signal updates the email_address and sets "verified" to False
 
             # Then send confirmation email
-            send_email_confirmation(request, request.user)
+            _send_email_confirmation(request, request.user)
 
             return redirect("profile_settings")
         else:
@@ -76,7 +88,7 @@ def email_verify(request):
     """
     Send confirmation email to the user
     """
-    send_email_confirmation(request, request.user)
+    _send_email_confirmation(request, request.user)
     return redirect("profile_settings")
 
 

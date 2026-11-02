@@ -13,25 +13,25 @@ exclude: |
 repos:
   # Validate the structure of pyproject.toml
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.24.1
+    rev: v0.27
     hooks:
       - id: validate-pyproject
 
   # Catch common typos across the codebase
   - repo: https://github.com/crate-ci/typos
-    rev: v1.32.0
+    rev: v1.51.1
     hooks:
       - id: typos
 
   # Run Ruff autoformatter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.12
+    rev: v0.17.3
     hooks:
       - id: ruff-format
         args: [--config=ruff.toml]
         pass_filenames: false # Faster: formats entire project at once
 
-      - id: ruff
+      - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix, --config=ruff.toml]
         pass_filenames: true # Needed to avoid false positives in lint-only mode
 
@@ -41,4 +41,4 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml, json5]
-        additional_dependencies: ["prettier@3.1.0"]
+        additional_dependencies: ["prettier@3.9.10"]
